@@ -1,0 +1,46 @@
+<Window x:Class="StickyNotes.App.ConfirmDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Onay" Width="432" SizeToContent="Height" WindowStyle="None" ResizeMode="NoResize"
+        AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterOwner" FontFamily="Segoe UI">
+    <!-- 16 px gölge payı + yumuşak gölge (üst üste düşük alfalı kenarlıklar) -->
+    <Grid Margin="16">
+        <Grid IsHitTestVisible="False">
+            <Grid.RenderTransform><TranslateTransform Y="3"/></Grid.RenderTransform>
+            <Border Margin="-1" CornerRadius="11" Background="#10000000"/>
+            <Border Margin="-3" CornerRadius="13" Background="#0D000000"/>
+            <Border Margin="-5" CornerRadius="15" Background="#0A000000"/>
+            <Border Margin="-7" CornerRadius="17" Background="#07000000"/>
+            <Border Margin="-9" CornerRadius="19" Background="#05000000"/>
+            <Border Margin="-11" CornerRadius="21" Background="#03000000"/>
+            <Border Margin="-13" CornerRadius="23" Background="#02000000"/>
+        </Grid>
+        <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource DangerBrush}" BorderThickness="1" CornerRadius="10"
+                MouseLeftButtonDown="Root_MouseLeftButtonDown" SnapsToDevicePixels="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="5"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Border Background="{StaticResource DangerBrush}" CornerRadius="9,9,0,0"/>
+                <StackPanel Grid.Row="1" Margin="22,18,22,18">
+                    <DockPanel>
+                        <TextBlock Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="20" Foreground="{StaticResource DangerBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource InkBrush}"
+                                   VerticalAlignment="Center" AutomationProperties.AutomationId="ConfirmTitle"/>
+                    </DockPanel>
+                    <TextBlock x:Name="MessageText" TextWrapping="Wrap" FontSize="13.5" Foreground="{StaticResource InkSoftBrush}"
+                               Margin="0,12,0,20" AutomationProperties.AutomationId="ConfirmMessage"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="CancelButton" Content="Vazgeç" MinWidth="90" IsDefault="True" IsCancel="True"
+                                AutomationProperties.AutomationId="ConfirmCancelButton"/>
+                        <Button x:Name="ConfirmButton" MinWidth="110" Margin="8,0,0,0" Style="{StaticResource DangerButton}"
+                                Click="Confirm_Click" AutomationProperties.AutomationId="ConfirmYesButton"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

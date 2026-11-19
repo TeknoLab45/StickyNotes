@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Hedef: net10.0-windows (VM'de .NET SDK 10 LTS-sonrası en yeni kurulu; net8.0 da kurulu ama net10 tercih edildi). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- WindowsForms yalnızca NotifyIcon (tray) için -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>StickyNotes</AssemblyName>
+    <RootNamespace>StickyNotes.App</RootNamespace>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>0.1.0</Version>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <Resource Include="Assets/app.ico" />
+    <ProjectReference Include="..\StickyNotes.Core\StickyNotes.Core.csproj" />
+  </ItemGroup>
+
+</Project>

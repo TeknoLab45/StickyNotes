@@ -1,0 +1,185 @@
+<Window x:Class="StickyNotes.App.NoteWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sticky Note" Width="308" Height="284" MinWidth="244" MinHeight="134"
+        WindowStyle="None" ResizeMode="CanResize" Topmost="True" ShowInTaskbar="False"
+        AllowsTransparency="True" Background="Transparent" WindowStartupLocation="Manual"
+        MouseEnter="Window_MouseEnterLeave" MouseLeave="Window_MouseEnterLeave"
+        Activated="Window_ActiveChanged" Deactivated="Window_ActiveChanged">
+    <!-- Pencere = görünür not + her kenarda 12 px gölge payı (ShadowPad). Pay aynı zamanda kenar boyutlandırma bölgesidir
+         (AllowsTransparency ile WindowChrome kullanılamaz; kenarlar WM_SYSCOMMAND/SC_SIZE ile boyutlandırır). -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="12"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="12"/>
+        </Grid.RowDefinitions>
+
+        <!-- Yumuşak gölge: Effect yerine üst üste binen, giderek büyüyen düşük alfalı kenarlıklar (SoftwareOnly modda ucuz) -->
+        <Grid Grid.Row="1" Grid.Column="1" IsHitTestVisible="False">
+            <Grid.RenderTransform><TranslateTransform Y="2"/></Grid.RenderTransform>
+            <Border Margin="-1" CornerRadius="7"  Background="#12000000"/>
+            <Border Margin="-2" CornerRadius="8"  Background="#10000000"/>
+            <Border Margin="-3" CornerRadius="9"  Background="#0D000000"/>
+            <Border Margin="-4" CornerRadius="10" Background="#0A000000"/>
+            <Border Margin="-6" CornerRadius="12" Background="#07000000"/>
+            <Border Margin="-8" CornerRadius="14" Background="#04000000"/>
+            <Border Margin="-10" CornerRadius="16" Background="#02000000"/>
+        </Grid>
+
+        <Border x:Name="BodyBorder" Grid.Row="1" Grid.Column="1" BorderBrush="#33000000" BorderThickness="1" CornerRadius="6"
+                SnapsToDevicePixels="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Üst şerit: çift tık = daralt/genişlet -->
+                <Border x:Name="StripBg" Grid.Row="0" CornerRadius="5,5,0,0">
+                    <DockPanel x:Name="Strip" LastChildFill="True" Background="Transparent" MouseLeftButtonDown="Strip_MouseLeftButtonDown">
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="2,0,0,0">
+                            <Button x:Name="ColorButton" Style="{StaticResource StripButton}" Content="&#xE790;" ToolTip="Renk ve opaklık"
+                                    Click="ColorButton_Click" AutomationProperties.AutomationId="ColorButton"/>
+                            <Button x:Name="TypeButton" Style="{StaticResource StripButton}" Content="&#xE9D5;" ToolTip="Metin / checklist"
+                                    Click="TypeButton_Click" AutomationProperties.AutomationId="TypeButton"/>
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,2,0">
+                            <Button x:Name="NewButton" Style="{StaticResource StripButton}" Content="&#xE710;" ToolTip="Yeni not (Ctrl+N)"
+                                    Click="NewButton_Click" AutomationProperties.AutomationId="NewNoteButton"/>
+                            <Button x:Name="CollapseButton" Style="{StaticResource StripButton}" ToolTip="Daralt / genişlet"
+                                    Click="CollapseButton_Click" AutomationProperties.AutomationId="CollapseButton">
+                                <Button.Content>
+                                    <TextBlock x:Name="CollapseGlyph" Text="&#xE70E;" FontFamily="{StaticResource IconFont}"/>
+                                </Button.Content>
+                            </Button>
+                            <Button x:Name="DeleteButton" Style="{StaticResource StripButton}" Content="&#xE74D;" ToolTip="Çöpe at"
+                                    Click="DeleteButton_Click" AutomationProperties.AutomationId="DeleteButton"/>
+                            <Button x:Name="HideButton" Style="{StaticResource StripButton}" Content="&#xE711;" ToolTip="Gizle"
+                                    Click="HideButton_Click" AutomationProperties.AutomationId="HideButton"/>
+                        </StackPanel>
+                        <!-- Soluk başlık: notun ilk satırı (her zaman görünür) -->
+                        <TextBlock x:Name="StripTitle" Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="#80000000"
+                                   VerticalAlignment="Center" Margin="6,0" TextTrimming="CharacterEllipsis"
+                                   AutomationProperties.AutomationId="StripTitle" Background="Transparent"/>
+                    </DockPanel>
+                </Border>
+
+                <!-- Gövde (daraltılınca gizlenir) -->
+                <Grid x:Name="BodyHost" Grid.Row="1">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+
+                    <!-- metin (biçimli: kalın / altı çizili / üstü çizili). İçerik kod-behind'da RichTextMapper ile eşlenir. -->
+                    <RichTextBox x:Name="TextEditor" AcceptsReturn="True" AcceptsTab="True"
+                                 VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0"
+                                 Padding="12,8,6,16" IsDocumentEnabled="False"
+                                 AutomationProperties.AutomationId="TextEditor">
+                        <RichTextBox.Resources>
+                            <Style TargetType="Paragraph">
+                                <Setter Property="Margin" Value="0"/>
+                            </Style>
+                        </RichTextBox.Resources>
+                        <FlowDocument PagePadding="0"/>
+                        <RichTextBox.ContextMenu>
+                            <ContextMenu Opened="EditorMenu_Opened">
+                                <MenuItem x:Name="MenuBold" Header="Kalın" InputGestureText="Ctrl+B"
+                                          Click="MenuBold_Click" AutomationProperties.AutomationId="MenuBold"/>
+                                <MenuItem x:Name="MenuUnderline" Header="Altı çizili" InputGestureText="Ctrl+U"
+                                          Click="MenuUnderline_Click" AutomationProperties.AutomationId="MenuUnderline"/>
+                                <MenuItem x:Name="MenuStrike" Header="Üstü çizili"
+                                          Click="MenuStrike_Click" AutomationProperties.AutomationId="MenuStrike"/>
+                                <Separator/>
+                                <MenuItem Header="Kes" InputGestureText="Ctrl+X" Command="ApplicationCommands.Cut"
+                                          AutomationProperties.AutomationId="MenuCut"/>
+                                <MenuItem Header="Kopyala" InputGestureText="Ctrl+C" Command="ApplicationCommands.Copy"
+                                          AutomationProperties.AutomationId="MenuCopy"/>
+                                <MenuItem Header="Yapıştır" InputGestureText="Ctrl+V" Command="ApplicationCommands.Paste"
+                                          AutomationProperties.AutomationId="MenuPaste"/>
+                            </ContextMenu>
+                        </RichTextBox.ContextMenu>
+                        <RichTextBox.Style>
+                            <Style TargetType="RichTextBox" BasedOn="{StaticResource {x:Type RichTextBox}}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsChecklist}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </RichTextBox.Style>
+                    </RichTextBox>
+
+                    <!-- checklist -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10,8,4,16">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsChecklist}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
+                        <ItemsControl x:Name="ItemsHost" ItemsSource="{Binding Items}" AutomationProperties.AutomationId="ChecklistItems">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel LastChildFill="True" Margin="0,2">
+                                        <CheckBox DockPanel.Dock="Left" VerticalAlignment="Top" Margin="2,2,8,0"
+                                                  IsChecked="{Binding Done}"/>
+                                        <TextBox x:Name="ItemText" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                                                 Background="Transparent" BorderThickness="0"
+                                                 TextWrapping="Wrap" AcceptsReturn="False"
+                                                 PreviewKeyDown="ItemText_PreviewKeyDown">
+                                            <TextBox.Style>
+                                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Done}" Value="True">
+                                                            <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                            <Setter Property="Opacity" Value="0.55"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBox.Style>
+                                        </TextBox>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Boyutlandırma tutamacı (sağ alt köşe): tutup sürüklenir -->
+                    <Border x:Name="Grip" Tag="8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="18" Height="18"
+                            Background="Transparent" Cursor="SizeNWSE" MouseLeftButtonDown="Resize_MouseLeftButtonDown"
+                            AutomationProperties.AutomationId="ResizeGrip">
+                        <Path Data="M12,3 L3,12 M12,7 L7,12" Stroke="#80000000" StrokeThickness="1.4"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" Margin="0,0,3,3"
+                              HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"/>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Kenar/köşe boyutlandırma bölgeleri (gölge payında; Tag = WMSZ yönü) -->
+        <Rectangle Grid.Row="1" Grid.Column="0" Tag="1" Cursor="SizeWE" Fill="#01000000" MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle Grid.Row="1" Grid.Column="2" Tag="2" Cursor="SizeWE" Fill="#01000000" MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle Grid.Row="0" Grid.Column="1" Tag="3" Cursor="SizeNS" Fill="#01000000" MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle Grid.Row="2" Grid.Column="1" Tag="6" Cursor="SizeNS" Fill="#01000000" MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle Grid.Row="0" Grid.Column="0" Tag="4" Cursor="SizeNWSE" Fill="#01000000" MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle Grid.Row="0" Grid.Column="2" Tag="5" Cursor="SizeNESW" Fill="#01000000" MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle Grid.Row="2" Grid.Column="0" Tag="7" Cursor="SizeNESW" Fill="#01000000" MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle Grid.Row="2" Grid.Column="2" Tag="8" Cursor="SizeNWSE" Fill="#01000000" MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+    </Grid>
+</Window>
