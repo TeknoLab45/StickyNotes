@@ -5,19 +5,19 @@ namespace StickyNotes.Core.Tests;
 
 /// <summary>
 /// Gerçek Memos sunucusuna karşı uçtan uca tur. MEMOS_TEST_URL, MEMOS_TEST_TOKEN ve MEMOS_TEST_SPACE
-/// (spaces/&lt;id&gt;, kullanıcı üye olmalı) tanımlı değilse test sessizce çıkar (atlanır).
-/// Token ve adres hiçbir çıktıya yazılmaz.
+/// (spaces/&lt;id&gt;, kullanıcı üye olmalı) tanımlı değilse test atlanır.
+/// Token ve adres hiçbir çıktıya yazılmaz. Ortam değişkenleri yoksa test atlanır (Skipped).
 /// </summary>
 public class MemosLiveTests
 {
-    [Fact]
+    [SkippableFact]
     public async Task Live_TwoWaySync_WithDockerMemos()
     {
-        var url = Environment.GetEnvironmentVariable("MEMOS_TEST_URL");
-        var token = Environment.GetEnvironmentVariable("MEMOS_TEST_TOKEN");
-        var space = Environment.GetEnvironmentVariable("MEMOS_TEST_SPACE");
-        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(space))
-            return; // atlandı: canlı sunucu yapılandırılmamış
+        var url = Environment.GetEnvironmentVariable("MEMOS_TEST_URL") ?? "";
+        var token = Environment.GetEnvironmentVariable("MEMOS_TEST_TOKEN") ?? "";
+        var space = Environment.GetEnvironmentVariable("MEMOS_TEST_SPACE") ?? "";
+        Skip.If(string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(space),
+            "MEMOS_TEST_URL, MEMOS_TEST_TOKEN ve MEMOS_TEST_SPACE tanımlı değil.");
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         var client = new MemosClient(http, url, token);

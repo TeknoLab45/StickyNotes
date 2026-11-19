@@ -60,7 +60,7 @@ public sealed class SyncEngine
 
     private sealed class Counters
     {
-        public int Pulled, Pushed, Created, Trashed, Conflicts;
+        public int Pulled, Pushed, Created, Trashed, Conflicts, Forbidden;
     }
 
     private async Task<SyncResult> RunLockedAsync(SyncSettings s, CancellationToken ct)
@@ -93,13 +93,11 @@ public sealed class SyncEngine
                 $"Sigorta: eşlenmiş {inSpace.Count} notun {missing.Count} tanesi sunucuda bulunamadı; hiçbir not çöpe atılmadı, eşitleme duraklatıldı.");
         foreach (var r in missing)
         {
-            if (await _api.GetMemoAsync(r.MemoName, ct) is not null) continue;
             var local = _repo.Get(r.NoteId);
-            if (local is { IsDeleted: false })
-            {
-                _repo.SoftDelete(r.NoteId);
-                c.Trashed++;
-            }
+            if (local is null || local.IsDeleted) continue; // kalıcı silinmiş ya da zaten çöpte: tekrar sorulmaz
+            if (await _api.GetMemoAsync(r.MemoName, ct) is not null) continue;
+            _repo.SoftDelete(r.NoteId);
+            c.Trashed++;
         }
 
         // 3) Uzak memolar: yeni (eşlenmemiş) ya da eşlenmiş.
@@ -154,7 +152,15 @@ public sealed class SyncEngine
         foreach (var n in _repo.ListForSync())
         {
             if (n.IsDeleted || mappedNotes.Contains(n.Id)) continue;
-            await CreateRemoteAsync(n, s, me, creatorNames, c, ct);
+            try
+            {
+                await CreateRemoteAsync(n, s, me, creatorNames, c, ct);
+            }
+            catch (MemosForbiddenException)
+            {
+                // Bu kullanıcı bu Space'e yazamıyor: not yerelde kalır, diğerleri gönderilmeye devam eder.
+                c.Forbidden++;
+            }
         }
 
         var parts = new List<string>();
@@ -163,6 +169,7 @@ public sealed class SyncEngine
         if (c.Created > 0) parts.Add($"{c.Created} yeni not eklendi");
         if (c.Trashed > 0) parts.Add($"{c.Trashed} not çöpe taşındı");
         if (c.Conflicts > 0) parts.Add($"{c.Conflicts} çakışma kopyası");
+        if (c.Forbidden > 0) parts.Add($"{c.Forbidden} not gönderilemedi (yetki yok, yerelde kaldı)");
         var msg = parts.Count == 0 ? "Eşitleme tamam: değişiklik yok." : "Eşitleme tamam: " + string.Join(", ", parts) + ".";
         return new SyncResult(SyncStatus.Ok, msg, c.Pulled, c.Pushed, c.Created, c.Trashed, c.Conflicts);
     }
@@ -203,7 +210,7 @@ public sealed class SyncEngine
 
         if (remoteChanged && !localChanged)
         {
-            ApplyRemoteToLocal(local, m, archived);
+            ApplyRemoteToLocal(local, m, archived, readOnly);
             c.Pulled++;
             _repo.MarkSynced(rec with { ReadOnly = readOnly, RemoteUpdateTime = m.UpdateTime, SyncedHash = remoteFp, SyncedAt = _now() });
             return;
@@ -213,7 +220,7 @@ public sealed class SyncEngine
         {
             // Salt okunur not: yerel değişiklik kullanıcının kopyasına gider, asıl not sunucu içeriğine döner.
             if (localChanged) CreateCopy(localMd, c);
-            ApplyRemoteToLocal(local, m, archived);
+            ApplyRemoteToLocal(local, m, archived, readOnly: true);
             c.Pulled++;
             _repo.MarkSynced(rec with { ReadOnly = true, RemoteUpdateTime = m.UpdateTime, SyncedHash = remoteFp, SyncedAt = _now() });
             return;
@@ -239,7 +246,7 @@ public sealed class SyncEngine
             if (latest is null) return;
             CreateCopy(localMd, c);
             var latestArchived = latest.State == "ARCHIVED";
-            ApplyRemoteToLocal(local, latest, latestArchived);
+            ApplyRemoteToLocal(local, latest, latestArchived, readOnly: true);
             c.Pulled++;
             _repo.MarkSynced(rec with { ReadOnly = true, RemoteUpdateTime = latest.UpdateTime,
                 SyncedHash = MemoMarkdown.Fingerprint(latest.Content, latestArchived), SyncedAt = _now() });
@@ -279,11 +286,14 @@ public sealed class SyncEngine
         c.Created++;
     }
 
-    private void ApplyRemoteToLocal(Note local, MemoDto m, bool archived)
+    /// <summary>Uzak durumu yerele uygular. Web'de geri alınan (NORMAL) memo, düzenlenebilir yerel notta çöpten çıkar.
+    /// Salt okunur notta yerel gizleme korunur.</summary>
+    private void ApplyRemoteToLocal(Note local, MemoDto m, bool archived, bool readOnly)
     {
         var (type, content) = MemoMarkdown.ToNote(m.Content);
         _repo.ApplyRemote(local.Id, type, content, m.UpdateTime);
         if (archived && !local.IsDeleted) _repo.SoftDelete(local.Id);
+        if (!archived && !readOnly && local.IsDeleted) _repo.Restore(local.Id);
     }
 
     /// <summary>Çakışma kopyası: metin notu, başında "(çakışma kopyası)" satırı. Yeni kimlik; sonraki turda gönderilir.</summary>

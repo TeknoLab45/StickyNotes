@@ -22,6 +22,10 @@ public sealed class FakeMemos : IMemosApi
     public int OfflineOnCreateNumber = -1;
     /// <summary>true ise UpdateMemo 403 döner (yetki kalktı senaryosu).</summary>
     public bool ForbidUpdate;
+    /// <summary>true ise CreateMemo 403 döner (bu kullanıcı yazamıyor).</summary>
+    public bool ForbidCreate;
+    /// <summary>Var olan Space'ler. Varsayılan: spaces/s1 (Space) ve spaces/s2.</summary>
+    public HashSet<string> Spaces = new() { Space, "spaces/s2" };
     private int _createCount;
 
     private void Enter(string op)
@@ -45,7 +49,7 @@ public sealed class FakeMemos : IMemosApi
     public Task<MemosSpace?> GetSpaceAsync(string spaceName, CancellationToken ct = default)
     {
         Enter("space");
-        return Task.FromResult(SpaceExists ? new MemosSpace(Space, "Ev Alanı", Role) : null);
+        return Task.FromResult(SpaceExists && Spaces.Contains(spaceName) ? new MemosSpace(spaceName, "Ev Alanı", Role) : null);
     }
 
     public Task<List<MemosSpace>> ListSpacesAsync(CancellationToken ct = default)
@@ -72,6 +76,7 @@ public sealed class FakeMemos : IMemosApi
     public Task<MemoDto> CreateMemoAsync(string memoId, string spaceName, string visibility, string content, CancellationToken ct = default)
     {
         Enter("create");
+        if (ForbidCreate) throw new MemosForbiddenException();
         _createCount++;
         if (_createCount == OfflineOnCreateNumber)
         {

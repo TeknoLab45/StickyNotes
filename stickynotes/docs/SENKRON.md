@@ -50,14 +50,34 @@ Test sunucuları (yerel, `localhost`):
 | Üye, başkasının memosunu düzenleyemez | **403** `permission denied` | 403 | Salt okunur kuralı |
 | Space admini başkasının memosunu düzenler | Evet (PATCH 200, içerik değişti) | Test edilmedi (yalnızca 0.31) | `isSpaceAdmin` (ADMIN) |
 | Silinmiş memo, eşleme | `GET` 404 | 404 | `GetMemoAsync` null |
+| Token ayarları sayfası (web) | `/setting#access-token` (kaynak: `web/src/router/routes.ts` `SETTING: "/setting"`, `web/src/components/Settings/settingSections.ts` anahtarı `access-token`) | aynı `/setting#access-token` | "Token al" bağlantısının yolu; sürüme bağlı değil |
 
 Sürümler arasında alan adı farkı görülmedi; DTO tek şema. Farklı bir sürüm çıkarsa DTO'da sürüm eşlemesi gerekir.
 
-### Açık kalan (doğrulanamadı)
+Token sayfası iki sürümde de aynı yol: `/setting#access-token`. Yol kaynak koddan doğrulandı (tag `v0.31.0` ve `26.11.1`); tarayıcıda elle bakılmadı. Yol sürüme bağlı olmadığı için kök algılamaya göre seçim gerekmez.
 
-- **Web arayüzündeki token ayarları sayfası yolu**: Docker'daki web arayüzü paketinde doğrudan arandı, bulunamadı (arama zaman aşımına uğradı). Arayüzde "Token al" bağlantısının yolu **doğrulanmadı**. G3'te tarayıcıdan elle doğrulanmalı.
-- Space değiştirme (eski Space'in eşlemeleri), iki PC'nin aynı UUID üretmesi, uzun çevrimdışı senaryosu ve veritabanı yeniden kurulumu **otomatik test edilmedi** (plan G2 listesinde). Kısmen kapsanan: çevrimdışı ortada kesilen tur, 409 ile eşleme, salt okunur, 403'ten salt okunura geçiş.
-- 403'ün `POST` (oluşturma) tarafı için ayrı test yok; `PATCH` tarafı test edildi.
+Space rolü: düzenleme yetkisi Space rolüne bağlı. `ADMIN` (ve `HOST`) rolü başkasının memosunu da düzenleyebilir; `USER` yalnız kendi memosunu düzenler. Plandaki "sunucu yöneticisi" ifadesi bu Space rolüne karşılık gelir. 0.31'de doğrulandı; 26.x'te yalnızca üyenin PATCH'inin 403 dönmesi doğrulandı.
+
+### Test kapsamı (plan G2 listesi)
+
+Otomatik testte olanlar (`SyncEngineTests.cs`, `SyncScenarioTests.cs`):
+- İlk eşitleme iki yönde; uzak değişim; yerel değişim; çakışma (tek kopya, sonraki turda yok).
+- Yerel çöp → ARCHIVED; uzak ARCHIVED → yerel çöp; web'de geri alma (ARCHIVED → NORMAL, iki tur, sunucuda NORMAL kalır, yerelde çöpte değil).
+- Kalıcı silme sunucuya istek göndermez.
+- Space 404 → duraklatma, DB bayt bayt aynı.
+- Sigorta (10 eşleme, boş liste); tek memo kayıp + GetMemo 404 → çöp; GetMemo 200 → dokunulmaz.
+- Space değişimi ve dönüş: eski alanın eşlemeleri yeni alana POST edilmez, eşlenmemiş notlar yeni alana gider, dönünce eski eşlemeler çalışır.
+- İki PC aynı UUID: tek memo, yineleme yok, kopya yok.
+- Uzun çevrimdışı: iki tarafta yeni / değişmiş / çöpe atılmış notlar. Tek turda tek çakışma kopyası; sonraki tur 0 değişiklik; iki taraf aynı küme.
+- DB yeniden kurulumu (boş DB, dolu sunucu): kopya yok, yinelenen memo yok.
+- Kesilen tur (kaldığı yerden devam), 409 ile eşleme, 401 → duraklatma, ağ hatası → Offline.
+- Salt okunur: başkasının notunu yerelde düzenleme → kopya, asıl not sunucu içeriği; salt okunur çöp yalnızca yerelde gizler, sunucuya gitmez; admin düzenleyebilir.
+- 403 (PATCH) → salt okunura geçiş ve kopya; 403 (POST) → not yerelde kalır, diğerleri gönderilir.
+
+Açık kalan:
+- App katmanındaki tek örnek kilidi ve tray davranışı (G3).
+- Token saklama ve Ayarlar arayüzü (G3), exe (G4).
+- Canlı Memos testi yalnızca `MEMOS_TEST_URL`, `MEMOS_TEST_TOKEN`, `MEMOS_TEST_SPACE` tanımlıysa çalışır; yoksa `Skipped` görünür (`Xunit.SkippableFact`).
 
 ## Testleri çalıştırma
 
@@ -67,7 +87,7 @@ cd stickynotes
 dotnet test tests/StickyNotes.Core.Tests/StickyNotes.Core.Tests.csproj
 ```
 
-Canlı sunucu testi (`MemosLiveTests`) yalnızca üç ortam değişkeni tanımlıyken çalışır; yoksa **sessizce geçer** (atlanır, sonuç "Passed" görünür):
+Canlı sunucu testi (`MemosLiveTests`) yalnızca üç ortam değişkeni tanımlıyken çalışır; yoksa **Skipped** görünür:
 
 ```bash
 MEMOS_TEST_URL=http://localhost:5231 \
@@ -90,4 +110,5 @@ docker run -d --name memos2611 -p 5232:5230 -v memos2611-data:/var/opt/memos neo
 - Markdown'a gitmeyen biçim: altı çizili. Sunucudan gelen `**`/`~~` çiftleri kalın/üstü çizili sayılır; kullanıcının kendi metninde geçen bu çiftler de öyle yorumlanır (kaçış yok).
 - Çakışma kopyası, yazma ile kayıt arasında çökme olursa iki kez oluşabilir (kopya, veri kaybı değil).
 - Sigorta eşiği (5 ve %30) hem mutlak hem oransal aynı anda aşılırsa tetiklenir. Tek tek kayıp memolar sigortaya takılmaz.
+- Kayıp memo 404 ile çöpe alındıktan sonra not zaten çöpteyse `GetMemo` tekrar çağrılmaz; eşleme satırı korunur.
 - Uygulama sunucuya tek turda bağlanır; iki eşzamanlı tur `SyncEngine` içinde sıraya girer, ama iki ayrı süreç arasında kilit yoktur (App katmanı tek örnek garanti etmeli).

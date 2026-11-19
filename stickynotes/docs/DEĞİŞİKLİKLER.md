@@ -11,8 +11,8 @@
 - `docs/SENKRON.md` (yeni), `docs/README.md` (indeks)
 
 **Doğrulama:**
-- `dotnet test tests/StickyNotes.Core.Tests` → 119/119 geçti (80 mevcut + 39 yeni). Canlı test ortam değişkenleri olmadan sessizce geçer.
-- Canlı test, Docker'daki iki sunucuda geçti: `neosmemo/memos:0.31.0` (port 5231) ve `neosmemo/memos:26.11.1` (port 5232). Bulgular `docs/SENKRON.md` içinde.
+- `dotnet test tests/StickyNotes.Core.Tests` → 124 geçti, 1 atlandı (80 mevcut + 45 yeni). Canlı test (`MemosLiveTests`) ortam değişkenleri yoksa Skipped görünür.
+- Canlı test, Docker'daki iki sunucuda geçti (GERİ turu sonrası yeniden çalıştırıldı): `neosmemo/memos:0.31.0` (port 5231) ve `neosmemo/memos:26.11.1` (port 5232). Bulgular `docs/SENKRON.md` içinde.
 
 **Kısıtlar / açık:** Token ayarları sayfasının web yolu doğrulanmadı (G3). Space değiştirme, iki PC aynı UUID, uzun çevrimdışı ve DB yeniden kurulumu otomatik test edilmedi. Ayrıntı `docs/SENKRON.md`.
 
