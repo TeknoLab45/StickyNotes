@@ -1,0 +1,16 @@
+# Bağımlılıklar ve derleme çıktıları
+node_modules/
+dist/
+bin/
+obj/
+__pycache__/
+.venv/
+
+# Ortam ve gizli dosyalar
+.env
+.env.*
+
+# Günlükler ve işletim sistemi dosyaları
+*.log
+.DS_Store
+Thumbs.db
