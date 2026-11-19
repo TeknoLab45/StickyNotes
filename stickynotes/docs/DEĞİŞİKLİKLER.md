@@ -1,5 +1,21 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-19 — TEK-167 — CoderAgent: Memos eşitlemesi Core (G1 + G2)
+
+**Ne:** Memos (0.31 ve 26.x) ile Space tabanlı iki yönlü eşitlemenin WPF'siz Core katmanı. Markdown dönüşümü, Memos istemcisi (kök algılama, PAT, hata türleri), eşleme tablosu `sync_state`, eşitleme turu (`SyncEngine`) ve ayarlar (`SyncSettings`). Arayüz, token saklama ve exe bu issue'da yok (G3–G4).
+
+**Dosyalar (`stickynotes/`):**
+- `src/StickyNotes.Core/Sync/MemoMarkdown.cs` (yeni), `MemosClient.cs` (yeni), `SyncEngine.cs` (yeni), `SyncSettings.cs` (yeni)
+- `src/StickyNotes.Core/NoteRepository.cs`: `sync_state` tablosu, `LoadSyncSettings`/`SaveSyncSettings`, `ListSyncState`, `MarkSynced`, `InsertRemote`, `ApplyRemote`, `ListForSync`
+- `tests/StickyNotes.Core.Tests/`: `MemoMarkdownTests.cs`, `MemosClientTests.cs`, `SyncEngineTests.cs`, `SyncFakes.cs`, `MemosLiveTests.cs` (yeni)
+- `docs/SENKRON.md` (yeni), `docs/README.md` (indeks)
+
+**Doğrulama:**
+- `dotnet test tests/StickyNotes.Core.Tests` → 119/119 geçti (80 mevcut + 39 yeni). Canlı test ortam değişkenleri olmadan sessizce geçer.
+- Canlı test, Docker'daki iki sunucuda geçti: `neosmemo/memos:0.31.0` (port 5231) ve `neosmemo/memos:26.11.1` (port 5232). Bulgular `docs/SENKRON.md` içinde.
+
+**Kısıtlar / açık:** Token ayarları sayfasının web yolu doğrulanmadı (G3). Space değiştirme, iki PC aynı UUID, uzun çevrimdışı ve DB yeniden kurulumu otomatik test edilmedi. Ayrıntı `docs/SENKRON.md`.
+
 ## 2026-11-18 — TEK-155 — CoderAgent: RichTextBox, Ctrl+B/Ctrl+U, sağ tık menüsü, düz metin yapıştırma (Görev B)
 
 **Ne:** Metin notları `TextBox`'tan `RichTextBox`'a geçti. Seçili yazıya Ctrl+B kalın, Ctrl+U altı çizili, üstü çizili yalnızca sağ tık menüsünde. Sağ tık menüsü kısa (Kalın, Altı çizili, Üstü çizili, ayraç, Kes, Kopyala, Yapıştır). Yapıştırma yalnızca düz metin. Biçim `marks` olarak saklanır (TEK-154 Core). Eski düz metin notlar biçimsiz açılır; yalnızca açmak `edited_at`'i değiştirmez.
