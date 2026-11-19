@@ -149,6 +149,9 @@ public partial class NoteViewModel : ObservableObject
             ? NoteContent.CreateChecklist(Items.Select(i => i.ToModel()))
             : NoteContent.CreateText(Text, Marks);
 
+    /// <summary>Kaydedilmemiş değişiklik var mı (diske giden içerikle karşılaştırır).</summary>
+    public bool IsDirty => Type + "|" + Color + "|" + BuildContent() != SavedSignature;
+
     /// <summary>Eşitlemeden gelen erişim durumu. Salt okunur not düzenlenemez; renk/opaklık/konum yine değişir.</summary>
     public void SetAccess(bool readOnly, string author)
     {

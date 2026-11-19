@@ -34,12 +34,12 @@ Ayarlar → **Memos eşitleme** (bu PC'ye özel; `settings` tablosundaki `memos_
 - Seçilen Space'teki tüm memolar (yazarı kim olursa olsun) yerel nota gelir. Yerelde yazdığınız notlar Space'e gönderilir.
 - Başka kullanıcının notu **salt okunur** açılır: metin, checklist, biçim, yapıştırma ve tür değişikliği kapalıdır; renk, opaklık, konum, daralt ve çöpe atma (yalnızca bu PC'den gizler) açıktır. Şeritte kilit simgesi görünür.
 - İki tarafta da değişen not çakışırsa yerel sürüm korunur, sunucu sürümü "(çakışma kopyası)" adıyla yeni not olur.
-- Yerelde çöpe atılan not sunucuda **silinmez**, arşivlenmez; sunucuda arşivlenen not yerelde çöpe gider.
+- Kendi notunuzu çöpe atarsanız sunucuda **arşivlenir** (silinmez); sunucuda arşivlenen not yerelde çöpe gider. Başkasının salt okunur notunu çöpe atmak yalnızca bu PC'de gizler.
 - Çevrimdışıyken değişiklikler yerelde kalır; tray "Çevrimdışı · N değişiklik bekliyor" yazar, bağlantı gelince tek turda gönderilir.
 - **Space değiştirilirse** eski Space'teki notlar yerelde kalır ama artık eşitlenmez (onay sorulur).
 - **Uyarı:** bir Space Memos'ta silinirse içindeki memolar sunucuda kalıcı olarak silinir. Eşitleme bu durumu algılayıp duraklatır, yerel notları silmez.
 
-Bilinen kısıtlar: uzak bir değişiklik, o notta siz yazarken gelirse yerel sürüm korunur (ertelenmez). Explorer'da kilit simgesi yok. Uzaktan yeni gelen notlar için pencere açılmaz (Explorer'dan açılır). Ayrıntı ve Docker doğrulama bulguları: `docs/SENKRON.md`.
+Düzenlediğiniz (odakta ya da kaydedilmemiş yazısı olan) nota gelen uzak değişiklik, not bırakılana kadar ertelenir; bir sonraki turda uygulanır. Explorer'da salt okunur notlar kilit simgesiyle, eski Space'e bağlı notlar "bağlantısız" etiketiyle görünür. Uzaktan yeni gelen notlar için pencere açılmaz (Explorer'dan açılır). Ayrıntı ve Docker doğrulama bulguları: `docs/SENKRON.md`.
 
 ## Veri ve log
 - Varsayılan: `%LOCALAPPDATA%\StickyNotes\notes.db`, log: `%LOCALAPPDATA%\StickyNotes\logs\app.log`.

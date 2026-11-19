@@ -24,6 +24,7 @@ public sealed class SyncService
     private readonly HashSet<string> _warned = new();
     private bool _running;
     private bool _again;
+    private bool _againResume;   // tur sürerken istenen "Yine de eşitle" bir sonraki tura taşınır
     private bool _muted;    // iç yazımlar (flush, uzak değişiklik uygulama) yeni tur tetiklemesin
     private bool _missed;   // tur sürerken kullanıcı değiştirdi → tur bitince bir kez daha eşitle
 
@@ -98,6 +99,7 @@ public sealed class SyncService
         if (_running)
         {
             _again = true;   // tur sürerken gelen tetik, tur bitince bir kez daha çalışır
+            _againResume |= resume;
             return;
         }
         var s = _manager.Repo.LoadSyncSettings();
@@ -119,7 +121,7 @@ public sealed class SyncService
         {
             Mute(_manager.FlushAll);   // açık notlardaki bekleyen yazımlar önce diske
             var client = new MemosClient(_http, s.Url, token, s.ApiRoot);
-            var engine = new SyncEngine(client, _manager.Repo);
+            var engine = new SyncEngine(client, _manager.Repo, null, _manager.IsBusy, _manager.OnRemoteApplied);
             var result = await engine.RunOnceAsync(s, resume);
 
             // Algılanan API kökü ve duraklatma durumu kalıcı olsun (sonraki açılışta yeniden denenmesin)
@@ -139,8 +141,9 @@ public sealed class SyncService
         }
         catch (Exception ex)
         {
+            // Kalıcı duraklatma yok: bir sonraki aralıkta yeniden denenir
             AppLog.Error("Eşitleme turu beklenmeyen hata", ex);
-            Remember(new SyncResult(SyncStatus.Paused, "Eşitleme beklenmeyen bir hatayla durdu. Ayrıntı: sticky-notes günlüğü."));
+            Remember(new SyncResult(SyncStatus.Paused, "Eşitleme beklenmeyen bir hatayla durdu; bir sonraki aralıkta yeniden denenecek. Ayrıntı günlükte."));
         }
         finally
         {
@@ -156,7 +159,9 @@ public sealed class SyncService
         if (_again)
         {
             _again = false;
-            await RunAsync(resume: false);
+            var resumeNext = _againResume;
+            _againResume = false;
+            await RunAsync(resumeNext);
         }
     }
 
@@ -184,6 +189,7 @@ public sealed class SyncService
         if (!s.Enabled || s.Space.Length == 0) return "Memos: kapalı";
         if (_running) return "Memos: eşitleniyor…";
         if (s.Paused) return "Memos: duraklatıldı";
+        if (LastResult is { Status: SyncStatus.Paused }) return "Memos: hata, yeniden denenecek";
         if (LastResult is { Status: SyncStatus.Offline })
             return $"Çevrimdışı · {PendingCount(s)} değişiklik bekliyor";
         if (LastResult is { Status: SyncStatus.NotConfigured } r) return r.Message;

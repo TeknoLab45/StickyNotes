@@ -371,4 +371,42 @@ public class SyncEngineTests : IDisposable
         Assert.Equal("/api/v1", back.ApiRoot);
         Assert.Equal("abc", back.TokenEnc);
     }
+
+    [Fact]
+    public async Task BusyNote_RemoteChangeDeferred_ThenAppliedWhenIdle()
+    {
+        var n = TextNote("ilk");
+        await Run();                                    // ilk eşitleme: taban oluşur
+        var memo = "memos/" + n.Id.Replace("-", "");
+        _api.RemoteEdit(memo, content: "web'de değişti");
+
+        var busy = true;
+        var engine = new SyncEngine(_api, _repo, () => new DateTime(2026, 11, 19, 9, 0, 0, DateTimeKind.Utc), id => busy && id == n.Id);
+
+        // Kullanıcı yazıyor: uzak sürüm yerel nota yazılmaz, taban değişmez
+        var r1 = await engine.RunOnceAsync(_settings);
+        Assert.Equal(SyncStatus.Ok, r1.Status);
+        Assert.Equal("ilk", Text(n.Id));
+        Assert.Contains("sonraki turda", r1.Message);
+
+        // Düzenleme bitti: bir sonraki tur uzak değişikliği alır
+        busy = false;
+        var r2 = await engine.RunOnceAsync(_settings);
+        Assert.Equal(SyncStatus.Ok, r2.Status);
+        Assert.Equal("web'de değişti", Text(n.Id));
+    }
+
+    [Fact]
+    public async Task RemoteApplied_InvokesCallbackWithNoteId()
+    {
+        var n = TextNote("ilk");
+        await Run();
+        _api.RemoteEdit("memos/" + n.Id.Replace("-", ""), content: "uzak");
+
+        var applied = new List<string>();
+        var engine = new SyncEngine(_api, _repo, null, null, id => applied.Add(id));
+        await engine.RunOnceAsync(_settings);
+
+        Assert.Equal(new[] { n.Id }, applied);
+    }
 }

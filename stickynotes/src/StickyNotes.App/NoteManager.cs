@@ -157,9 +157,21 @@ public sealed class NoteManager
         foreach (var w in _windows.Values.ToList()) w.Flush();
     }
 
+    /// <summary>Not şu an düzenleniyor mu (odakta ya da kaydedilmemiş yazı var). Eşitleme bu notlara uzak değişiklik uygulamaz.</summary>
+    public bool IsBusy(string id) =>
+        _windows.TryGetValue(id, out var w) && (w.IsKeyboardFocusWithin || w.Vm.IsDirty);
+
+    /// <summary>Eşitleme uzak içeriği yerel nota yazdığı anda çağrılır: açık pencere aynı anda yenilenir.</summary>
+    public void OnRemoteApplied(string id)
+    {
+        if (!_windows.TryGetValue(id, out var w)) return;
+        var note = Repo.Get(id);
+        if (note != null && !note.IsDeleted && !w.IsKeyboardFocusWithin && !w.Vm.IsDirty) w.ReloadFromNote(note);
+    }
+
     /// <summary>
-    /// Eşitleme turundan sonra: uzakta arşivlenen notların pencerelerini kapatır, diğerlerinde uzak içeriği
-    /// yükler (odakta yazılan not korunur) ve salt okunur durumunu günceller.
+    /// Eşitleme turundan sonra: uzakta arşivlenen notların pencerelerini kapatır ve salt okunur durumunu günceller.
+    /// Uzak içerik yükleme işi <see cref="OnRemoteApplied"/>'da yapılır.
     /// </summary>
     public void RefreshAfterSync()
     {
@@ -169,11 +181,10 @@ public sealed class NoteManager
             if (note == null || note.IsDeleted)
             {
                 _windows.Remove(id);
-                w.CloseForReal();   // kayıt yazılmaz: içerik zaten çöpte
+                w.Flush();          // düzenlenmiş yazı çöpteki nota kalsın
+                w.CloseForReal();
                 continue;
             }
-            if (!w.IsKeyboardFocusWithin && w.Vm.SavedSignature != note.Type + "|" + note.Color + "|" + note.Content)
-                w.ReloadFromNote(note);
             ApplyAccess(w.Vm, id);
         }
         NotifyChanged();

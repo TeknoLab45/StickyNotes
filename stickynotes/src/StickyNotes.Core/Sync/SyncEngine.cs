@@ -31,13 +31,20 @@ public sealed class SyncEngine
     private readonly IMemosApi _api;
     private readonly NoteRepository _repo;
     private readonly Func<DateTime> _now;
+    private readonly Func<string, bool>? _isBusy;
+    private readonly Action<string>? _onRemoteApplied;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    public SyncEngine(IMemosApi api, NoteRepository repo, Func<DateTime>? now = null)
+    /// <param name="isBusy">Not şu an düzenleniyorsa true (odakta ya da kaydedilmemiş yazı var). Bu notlara uzak değişiklik uygulanmaz, sonraki turda denenir.</param>
+    /// <param name="onRemoteApplied">Uzak içerik yerel nota yazıldıktan hemen sonra çağrılır (açık pencere aynı anda yenilensin diye).</param>
+    public SyncEngine(IMemosApi api, NoteRepository repo, Func<DateTime>? now = null,
+        Func<string, bool>? isBusy = null, Action<string>? onRemoteApplied = null)
     {
         _api = api;
         _repo = repo;
         _now = now ?? (() => DateTime.UtcNow);
+        _isBusy = isBusy;
+        _onRemoteApplied = onRemoteApplied;
     }
 
     /// <summary>Bir tur çalıştırır. resume=true duraklatmayı yok sayar ("Yine de eşitle").</summary>
@@ -60,7 +67,7 @@ public sealed class SyncEngine
 
     private sealed class Counters
     {
-        public int Pulled, Pushed, Created, Trashed, Conflicts, Forbidden;
+        public int Pulled, Pushed, Created, Trashed, Conflicts, Forbidden, Deferred;
     }
 
     private async Task<SyncResult> RunLockedAsync(SyncSettings s, CancellationToken ct)
@@ -170,6 +177,7 @@ public sealed class SyncEngine
         if (c.Trashed > 0) parts.Add($"{c.Trashed} not çöpe taşındı");
         if (c.Conflicts > 0) parts.Add($"{c.Conflicts} çakışma kopyası");
         if (c.Forbidden > 0) parts.Add($"{c.Forbidden} not gönderilemedi (yetki yok, yerelde kaldı)");
+        if (c.Deferred > 0) parts.Add($"{c.Deferred} düzenlenen not sonraki turda güncellenecek");
         var msg = parts.Count == 0 ? "Eşitleme tamam: değişiklik yok." : "Eşitleme tamam: " + string.Join(", ", parts) + ".";
         return new SyncResult(SyncStatus.Ok, msg, c.Pulled, c.Pushed, c.Created, c.Trashed, c.Conflicts);
     }
@@ -182,6 +190,12 @@ public sealed class SyncEngine
 
         var archived = m.State == "ARCHIVED";
         var remoteFp = MemoMarkdown.Fingerprint(m.Content, archived);
+        // Kullanıcı bu notu düzenliyorsa uzak değişiklik şimdilik uygulanmaz: taban değişmez, sonraki turda tekrar denenir.
+        if (_isBusy?.Invoke(rec.NoteId) == true && remoteFp != rec.SyncedHash)
+        {
+            c.Deferred++;
+            return;
+        }
         var localMd = MemoMarkdown.FromNote(local.Type, local.Content);
         var localFp = MemoMarkdown.Fingerprint(localMd, !readOnly && local.IsDeleted);
 
@@ -244,9 +258,18 @@ public sealed class SyncEngine
             // Yetki kalktı: salt okunura çevrilir. Yerel değişiklik kopyaya gider.
             var latest = await _api.GetMemoAsync(rec.MemoName, ct);
             if (latest is null) return;
-            CreateCopy(localMd, c);
+            // Bekleme sırasında not düzenlendiyse uzak içerik uygulanmaz; sonraki turda salt okunur akışla işlenir.
+            if (_isBusy?.Invoke(rec.NoteId) == true)
+            {
+                c.Deferred++;
+                return;
+            }
+            // Bekleme sırasında değişmiş olabilecek güncel yerel içerikten kopya al (bayat anlık görüntü değil).
+            var fresh = _repo.Get(rec.NoteId);
+            if (fresh is null) return;
+            CreateCopy(MemoMarkdown.FromNote(fresh.Type, fresh.Content), c);
             var latestArchived = latest.State == "ARCHIVED";
-            ApplyRemoteToLocal(local, latest, latestArchived, readOnly: true);
+            ApplyRemoteToLocal(fresh, latest, latestArchived, readOnly: true);
             c.Pulled++;
             _repo.MarkSynced(rec with { ReadOnly = true, RemoteUpdateTime = latest.UpdateTime,
                 SyncedHash = MemoMarkdown.Fingerprint(latest.Content, latestArchived), SyncedAt = _now() });
@@ -294,6 +317,7 @@ public sealed class SyncEngine
         _repo.ApplyRemote(local.Id, type, content, m.UpdateTime);
         if (archived && !local.IsDeleted) _repo.SoftDelete(local.Id);
         if (!archived && !readOnly && local.IsDeleted) _repo.Restore(local.Id);
+        _onRemoteApplied?.Invoke(local.Id);
     }
 
     /// <summary>Çakışma kopyası: metin notu, başında "(çakışma kopyası)" satırı. Yeni kimlik; sonraki turda gönderilir.</summary>

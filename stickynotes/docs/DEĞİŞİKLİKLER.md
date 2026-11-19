@@ -9,6 +9,7 @@
 - `src/StickyNotes.App/SyncService.cs` (yeni): zamanlayıcı, 5 sn debounce, tur kilidi, tur sırasında gelen tetiklere tek tekrar, algılanan API kökü ve duraklatma durumunun kalıcı kaydı, tray durum metni, tek seferlik uyarılar.
 - `src/StickyNotes.App/SettingsWindow.xaml(.cs)`: "Memos eşitleme" bölümü; Space değişiminde onay (eski Space'teki not sayısı); pencere artık `ScrollViewer` içinde (`MaxHeight` 720).
 - `src/StickyNotes.App/NoteViewModel.cs`: `IsReadOnly`, `ReadOnlyAuthor`, `SetAccess`, `ReloadFrom`; salt okunurda `ToggleType` yapılmaz.
+- Düzeltme (GERİ, ReviewerAgent): `SyncEngine` odakta/kaydedilmemiş notlara uzak değişikliği uygulamaz (`isBusy`, `Deferred` sayacı; 2 yeni Core testi); `onRemoteApplied` ile açık pencere uzak içeriği anında alır. `resume` bayrağı kuyrukta korunur. Beklenmeyen hata sonrası durum metni tutarlı. Explorer'da kilit ve "bağlantısız" işareti eklendi (`ExplorerWindow.xaml(.cs)`). `CLIENT.md` çöp kuralı düzeltildi.
 - `src/StickyNotes.App/NoteWindow.xaml(.cs)`: salt okunurda editör `IsReadOnly`, checklist kutucukları ve metinleri kilitli, biçim kısayolları kapalı; şeritte kilit simgesi; `ReloadFromNote`.
 - `src/StickyNotes.App/NoteManager.cs`: `FlushAll`, `RefreshAfterSync` (uzakta arşivlenen notun penceresi kapanır, odakta olmayan pencere uzak içeriği alır), açılışta salt okunur durumu uygulama.
 - `src/StickyNotes.App/App.xaml.cs`: `SyncService` kurulumu, tray menüsüne "Memos: …" satırı ve "Şimdi eşitle", çıkışta zamanlayıcı durdurma.
@@ -22,8 +23,7 @@
 - **Yapılmadı:** Windows'ta çalıştırma, `tek166.ps1` koşusu, ekran görüntüleri, Docker Memos (0.31 / 26.11.1) ile uçtan uca test, win-x64 publish, `StickyNotes.exe` güncellemesi.
 
 **Kısıtlar / açık:**
-- Açık not, uzaktan gelen değişiklikte odaktaysa yerel sürüm korunur ve sonraki turda gönderilir; uzak değişiklik ertelenmez (Core'da erteleme yok).
-- Explorer'da kilit simgesi ve "bağlantısız" işareti yok (plan'da vardı, bu issue'da yapılmadı).
+- Düzenlenen not (odakta ya da kaydedilmemiş yazı) o turda güncellenmez; uzak değişiklik bir sonraki turda uygulanır. Tur sırasında uygulanan uzak içerik açık pencereye aynı anda yazılır.
 - Sunucuda yeni gelen notlar için pencere açılmaz; Explorer'dan açılır.
 - Sync kapalıyken de salt okunur işaret kalır (not, eşlendiği için yerelde düzenlenmez).
 
