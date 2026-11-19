@@ -23,6 +23,8 @@ public partial class SettingsWindow : Window
     {
         _manager = manager;
         InitializeComponent();
+        // Küçük ekranlarda pencere çalışma alanını aşmasın; içerik ScrollViewer ile kaydırılır
+        MaxHeight = SystemParameters.WorkArea.Height;
 
         foreach (var f in Fonts.SystemFontFamilies.Select(f => f.Source).OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase))
             FontFamilyCombo.Items.Add(f);
@@ -220,8 +222,12 @@ public partial class SettingsWindow : Window
         if (token.Length == 0) { Memos_Status("Token boş."); return; }
         SaveSync(s => s with { TokenEnc = TokenStore.Protect(token), Paused = false });
         MemosTokenBox.Password = "";
+        MemosTokenSaveButton.Content = "Kaydedildi ✓";
         Memos_Status("Token kaydedildi (bu Windows hesabına bağlı olarak şifrelendi). 'Bağlantıyı test et' ile doğrulayın.");
     }
+
+    // Yeni token yazılınca "Kaydedildi ✓" ipucu sıfırlanır
+    private void MemosToken_Changed(object sender, RoutedEventArgs e) => MemosTokenSaveButton.Content = "Kaydet";
 
     private void MemosGetToken_Click(object sender, RoutedEventArgs e)
     {

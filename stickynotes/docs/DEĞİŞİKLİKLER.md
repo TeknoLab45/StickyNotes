@@ -1,5 +1,22 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-19 — TEK-170 — CoderAgent: Ayarlar küçük ekran düzeltmesi, main'e merge
+
+**Ne:** Ayarlar penceresi 800 px yüksekliğindeki ekranda artık çalışma alanını aşmıyor: `ScrollViewer` üzerindeki sabit `MaxHeight="720"` kaldırıldı, pencerenin `MaxHeight`'i `SystemParameters.WorkArea.Height` yapıldı, içerik kaydırılıyor (Memos bölümünün alt kısmı, Space seçimi ve durum satırı erişilebilir). Token kaydedilince "Kaydet" düğmesi "Kaydedildi ✓" olur; yeni bir token yazılınca "Kaydet"e döner.
+
+**Dosyalar (`stickynotes/`):**
+- `src/StickyNotes.App/SettingsWindow.xaml`: `ScrollViewer` `MaxHeight` kaldırıldı; `MemosTokenBox` `PasswordChanged="MemosToken_Changed"`; `MemosTokenSaveButton` `x:Name` eklendi.
+- `src/StickyNotes.App/SettingsWindow.xaml.cs`: kurucuda `MaxHeight = SystemParameters.WorkArea.Height`; `MemosTokenSave_Click` düğme etiketini günceller; `MemosToken_Changed` yeni.
+- `docs/DEĞİŞİKLİKLER.md`: bu madde.
+
+**Doğrulama (bu makine: Linux, `/home/dietpi/.dotnet/dotnet`, 10.0.403):**
+- `dotnet build StickyNotes.slnx -p:EnableWindowsTargeting=true` → 0 uyarı, 0 hata.
+- `dotnet test tests/StickyNotes.Core.Tests -p:EnableWindowsTargeting=true` → 126 geçti, 1 atlandı (`MemosLiveTests`, Docker Memos yok).
+- **Yapılmadı:** WPF penceresi Windows'ta açılıp 800 px ekranda görsel doğrulanmadı; yeni exe derlenmedi.
+
+**Kısıtlar / açık:**
+- Bu düzeltme TEK-169'daki `StickyNotes.exe`'ye dahil değil. Düzeltmeli exe için WinVMAgent'ın yeniden publish etmesi gerekir.
+
 ## 2026-11-19 — TEK-168 — CoderAgent: Memos arayüzü, salt okunur not, tray, token (G3 kodu, sürüm 0.2.0)
 
 **Ne:** StickyNotes'a Memos bağlantısı eklendi: Ayarlar'da Memos bölümü (adres, token, bağlantı testi, Space seçimi, görünürlük, aralık, "Şimdi eşitle"/"Yine de eşitle"), token'ın DPAPI ile şifrelenmesi, eşitlemeyi çalıştıran zamanlayıcı ve kayıttan 5 sn sonra tetikleme, başka kullanıcıların notlarında salt okunur mod (kilit simgesi), tray'de "Memos" durum satırı ve "Şimdi eşitle", tek seferlik tray uyarıları. Sürüm 0.1.0 → 0.2.0. Exe derlemesi/yayını bu issue'da yok (WinVMAgent işi).

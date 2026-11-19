@@ -26,7 +26,7 @@
             <Setter Property="Padding" Value="6,4"/>
         </Style>
     </Window.Resources>
-    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="720">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="24,12,24,18">
         <TextBlock Style="{StaticResource Section}" Text="Yazı (tüm notlara anında uygulanır)" Margin="0,4,0,6"/>
         <Grid>
@@ -89,9 +89,9 @@
             <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Token"/>
             <Grid Grid.Row="1" Grid.Column="1">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <PasswordBox x:Name="MemosTokenBox" Margin="0,3" Padding="6,4" VerticalContentAlignment="Center"
+                <PasswordBox x:Name="MemosTokenBox" Margin="0,3" Padding="6,4" VerticalContentAlignment="Center" PasswordChanged="MemosToken_Changed"
                              ToolTip="Memos'ta Ayarlar › Erişim tokenı ile oluşturulur (memos_pat_…)" AutomationProperties.AutomationId="MemosTokenBox"/>
-                <Button Grid.Column="1" Content="Kaydet" Margin="6,3,0,3" Padding="10,2" Click="MemosTokenSave_Click" AutomationProperties.AutomationId="MemosTokenSaveButton"/>
+                <Button x:Name="MemosTokenSaveButton" Grid.Column="1" Content="Kaydet" Margin="6,3,0,3" Padding="10,2" Click="MemosTokenSave_Click" AutomationProperties.AutomationId="MemosTokenSaveButton"/>
                 <Button Grid.Column="2" Content="Token al" Margin="6,3,0,3" Padding="10,2" Click="MemosGetToken_Click"
                         ToolTip="Tarayıcıda Memos'un token sayfasını açar" AutomationProperties.AutomationId="MemosGetTokenButton"/>
             </Grid>
