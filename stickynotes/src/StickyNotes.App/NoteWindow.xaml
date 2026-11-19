@@ -47,6 +47,7 @@
                             <Button x:Name="ColorButton" Style="{StaticResource StripButton}" Content="&#xE790;" ToolTip="Renk ve opaklık"
                                     Click="ColorButton_Click" AutomationProperties.AutomationId="ColorButton"/>
                             <Button x:Name="TypeButton" Style="{StaticResource StripButton}" Content="&#xE9D5;" ToolTip="Metin / checklist"
+                                    IsEnabled="{Binding IsEditable}"
                                     Click="TypeButton_Click" AutomationProperties.AutomationId="TypeButton"/>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,2,0">
@@ -63,6 +64,22 @@
                             <Button x:Name="HideButton" Style="{StaticResource StripButton}" Content="&#xE711;" ToolTip="Gizle"
                                     Click="HideButton_Click" AutomationProperties.AutomationId="HideButton"/>
                         </StackPanel>
+                        <!-- Salt okunur (Memos'ta başka kullanıcının notu): kilit simgesi ve yazar ipucu -->
+                        <TextBlock DockPanel.Dock="Right" Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="12"
+                                   Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#80000000"
+                                   ToolTip="{Binding ReadOnlyAuthor, StringFormat='{}{0} tarafından yazıldı (salt okunur)'}"
+                                   AutomationProperties.AutomationId="ReadOnlyLock">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsReadOnly}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                         <!-- Soluk başlık: notun ilk satırı (her zaman görünür) -->
                         <TextBlock x:Name="StripTitle" Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="#80000000"
                                    VerticalAlignment="Center" Margin="6,0" TextTrimming="CharacterEllipsis"
@@ -83,7 +100,7 @@
                     </Grid.Style>
 
                     <!-- metin (biçimli: kalın / altı çizili / üstü çizili). İçerik kod-behind'da RichTextMapper ile eşlenir. -->
-                    <RichTextBox x:Name="TextEditor" AcceptsReturn="True" AcceptsTab="True"
+                    <RichTextBox x:Name="TextEditor" AcceptsReturn="True" AcceptsTab="True" IsReadOnly="{Binding IsReadOnly}"
                                  VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0"
                                  Padding="12,8,6,16" IsDocumentEnabled="False"
                                  AutomationProperties.AutomationId="TextEditor">
@@ -138,8 +155,10 @@
                                 <DataTemplate>
                                     <DockPanel LastChildFill="True" Margin="0,2">
                                         <CheckBox DockPanel.Dock="Left" VerticalAlignment="Top" Margin="2,2,8,0"
-                                                  IsChecked="{Binding Done}"/>
+                                                  IsChecked="{Binding Done}"
+                                                  IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                         <TextBox x:Name="ItemText" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                                                 IsReadOnly="{Binding DataContext.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
                                                  Background="Transparent" BorderThickness="0"
                                                  TextWrapping="Wrap" AcceptsReturn="False"
                                                  PreviewKeyDown="ItemText_PreviewKeyDown">

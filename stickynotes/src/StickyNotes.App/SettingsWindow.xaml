@@ -26,6 +26,7 @@
             <Setter Property="Padding" Value="6,4"/>
         </Style>
     </Window.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="24,12,24,18">
         <TextBlock Style="{StaticResource Section}" Text="Yazı (tüm notlara anında uygulanır)" Margin="0,4,0,6"/>
         <Grid>
@@ -78,7 +79,51 @@
         <TextBlock Style="{StaticResource Label}" TextWrapping="Wrap" FontSize="11.5" Margin="0,4,0,0"
                    Text="Kutuya tıklayıp yeni tuş birleşimine basın (en az bir Ctrl/Alt/Shift/Win). Backspace/Delete = kısayolu kapat."/>
 
+        <TextBlock Style="{StaticResource Section}" Text="Memos eşitleme"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <TextBlock Style="{StaticResource Label}" Text="Sunucu adresi"/>
+            <TextBox x:Name="MemosUrlBox" Grid.Column="1" Style="{StaticResource Field}" LostFocus="MemosUrl_Commit" KeyDown="MemosUrl_KeyDown"
+                     ToolTip="Örn. http://192.168.1.10:5230" AutomationProperties.AutomationId="MemosUrlBox"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Token"/>
+            <Grid Grid.Row="1" Grid.Column="1">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <PasswordBox x:Name="MemosTokenBox" Margin="0,3" Padding="6,4" VerticalContentAlignment="Center" PasswordChanged="MemosToken_Changed"
+                             ToolTip="Memos'ta Ayarlar › Erişim tokenı ile oluşturulur (memos_pat_…)" AutomationProperties.AutomationId="MemosTokenBox"/>
+                <Button x:Name="MemosTokenSaveButton" Grid.Column="1" Content="Kaydet" Margin="6,3,0,3" Padding="10,2" Click="MemosTokenSave_Click" AutomationProperties.AutomationId="MemosTokenSaveButton"/>
+                <Button Grid.Column="2" Content="Token al" Margin="6,3,0,3" Padding="10,2" Click="MemosGetToken_Click"
+                        ToolTip="Tarayıcıda Memos'un token sayfasını açar" AutomationProperties.AutomationId="MemosGetTokenButton"/>
+            </Grid>
+            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Bağlantı"/>
+            <Button x:Name="MemosTestButton" Grid.Row="2" Grid.Column="1" Content="Bağlantıyı test et" HorizontalAlignment="Left" Padding="10,2" Margin="0,3"
+                    Click="MemosTest_Click" AutomationProperties.AutomationId="MemosTestButton"/>
+            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Alan (Space)"/>
+            <ComboBox x:Name="MemosSpaceCombo" Grid.Row="3" Grid.Column="1" SelectionChanged="MemosSpace_Changed" AutomationProperties.AutomationId="MemosSpaceCombo"/>
+            <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="Görünürlük"/>
+            <ComboBox x:Name="MemosVisibilityCombo" Grid.Row="4" Grid.Column="1" SelectionChanged="MemosVisibility_Changed" AutomationProperties.AutomationId="MemosVisibilityCombo"/>
+            <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="Eşitleme aralığı (dk)"/>
+            <TextBox x:Name="MemosIntervalBox" Grid.Row="5" Grid.Column="1" Style="{StaticResource Field}" LostFocus="MemosInterval_Commit" KeyDown="MemosInterval_KeyDown"
+                     AutomationProperties.AutomationId="MemosIntervalBox"/>
+            <TextBlock Grid.Row="6" Style="{StaticResource Label}" Text="Eşitleme"/>
+            <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <CheckBox x:Name="MemosEnabledCheck" Content="Eşitleme açık" Click="MemosEnabled_Click" AutomationProperties.AutomationId="MemosEnabledCheck"/>
+                <TextBlock x:Name="MemosSpaceHint" Text="Alan seçin" Foreground="#B45309" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,0">
+                <Button x:Name="MemosSyncNowButton" Content="Şimdi eşitle" Padding="10,2" Click="MemosSyncNow_Click" AutomationProperties.AutomationId="MemosSyncNowButton"/>
+                <Button x:Name="MemosResumeButton" Content="Yine de eşitle" Padding="10,2" Margin="8,0,0,0" Visibility="Collapsed"
+                        Click="MemosResume_Click" ToolTip="Duraklatılmış eşitlemeyi bir kez çalıştırır" AutomationProperties.AutomationId="MemosResumeButton"/>
+            </StackPanel>
+        </Grid>
+        <TextBlock x:Name="MemosSyncState" Style="{StaticResource Label}" TextWrapping="Wrap" FontSize="11.5" Margin="0,6,0,0"/>
+        <TextBlock x:Name="MemosStatus" Style="{StaticResource Label}" TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource InkBrush}" Margin="0,2,0,0"
+                   AutomationProperties.AutomationId="MemosStatus"/>
+        <TextBlock Style="{StaticResource Label}" TextWrapping="Wrap" FontSize="11.5" Margin="0,4,0,0"
+                   Text="Memos 0.31 veya üstü gerekir. Eşitleme yalnızca seçilen Space'i kullanır. Space silinirse içindeki memolar sunucuda kalıcı olarak silinir."/>
+
         <Button Content="Kapat" HorizontalAlignment="Right" MinWidth="90" Margin="0,18,0,0" IsCancel="True" IsDefault="True"
                 Click="Close_Click" AutomationProperties.AutomationId="CloseSettingsButton"/>
     </StackPanel>
+    </ScrollViewer>
 </Window>

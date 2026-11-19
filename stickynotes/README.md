@@ -1,12 +1,12 @@
 # StickyNotes
 
 - **Amaç:** Windows için tray'de çalışan yapışkan not uygulaması (WPF, .NET 10, SQLite).
-- **Durum:** deneme; derlenmiş exe dahil. Core testleri 80/80 geçti.
+- **Durum:** deneme. Memos eşitlemesi (Core + arayüz) kodlandı (TEK-167/TEK-168); Windows'ta UI testi ve exe yayını bekliyor. Core testleri 124 geçti, 1 atlandı.
 - **Tarih:** 2026-11-19
-- **Issue:** TEK-162 (alt issue TEK-163)
+- **Issue:** TEK-162 (alt issue TEK-163); Memos: TEK-166 (TEK-167, TEK-168)
 
 ## Çalıştırma
-`StickyNotes.exe` (win-x64, self-contained tek dosya, ~73 MB; .NET kurulumu gerekmez). Tray ikonu belirir. Veri: `%LOCALAPPDATA%\StickyNotes`; `--data-dir <yol>` ile değişir.
+`StickyNotes.exe` (win-x64, self-contained tek dosya, ~73 MB; .NET kurulumu gerekmez). Bu sürümün exe'si henüz güncellenmedi (sürüm 0.2.0 kaynağı hazır; exe WinVMAgent işinde). Tray ikonu belirir. Veri: `%LOCALAPPDATA%\StickyNotes`; `--data-dir <yol>` ile değişir.
 
 ## Derleme (stickynotes/ içinde, .NET SDK 10)
 ```

@@ -54,6 +54,16 @@ public partial class NoteViewModel : ObservableObject
 
     public ObservableCollection<ChecklistItemViewModel> Items { get; } = new();
 
+    /// <summary>Memos'tan gelen, bu kullanıcının düzenleyemediği not (yalnızca okunur).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEditable))]
+    private bool _isReadOnly;
+
+    /// <summary>Salt okunur notun yazarı (şerit ipucunda gösterilir).</summary>
+    [ObservableProperty] private string _readOnlyAuthor = "";
+
+    public bool IsEditable => !IsReadOnly;
+
     public bool IsChecklist => Type == NoteType.Checklist;
 
     /// <summary>Daraltılmış not penceresinin başlık satırında gösterilen ilk satır.</summary>
@@ -139,9 +149,36 @@ public partial class NoteViewModel : ObservableObject
             ? NoteContent.CreateChecklist(Items.Select(i => i.ToModel()))
             : NoteContent.CreateText(Text, Marks);
 
+    /// <summary>Kaydedilmemiş değişiklik var mı (diske giden içerikle karşılaştırır).</summary>
+    public bool IsDirty => Type + "|" + Color + "|" + BuildContent() != SavedSignature;
+
+    /// <summary>Eşitlemeden gelen erişim durumu. Salt okunur not düzenlenemez; renk/opaklık/konum yine değişir.</summary>
+    public void SetAccess(bool readOnly, string author)
+    {
+        ReadOnlyAuthor = author;
+        IsReadOnly = readOnly;
+    }
+
+    /// <summary>Uzaktan güncellenmiş notu (tür, renk, opaklık, içerik) yükler. Değişiklik olarak sayılmaz (kaydetmez).</summary>
+    public void ReloadFrom(Note note)
+    {
+        _loading = true;
+        try
+        {
+            Type = note.Type;
+            Color = note.Color;
+            NoteOpacity = SavedOpacity = note.Opacity;
+            LoadContent(note.Content);
+        }
+        finally { _loading = false; }
+        SavedSignature = Type + "|" + Color + "|" + BuildContent();
+        OnPropertyChanged(nameof(Title));
+    }
+
     /// <summary>Metin ↔ checklist dönüşümü; içerik korunur.</summary>
     public void ToggleType()
     {
+        if (IsReadOnly) return;
         _loading = true;
         try
         {

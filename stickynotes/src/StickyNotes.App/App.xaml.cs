@@ -17,6 +17,10 @@ public partial class App : Application
     private System.Drawing.Icon? _trayIcon;
     private bool _exiting;
     private System.Windows.Forms.ContextMenuStrip? _trayMenu;
+    private System.Windows.Forms.ToolStripMenuItem? _syncStatusItem;
+
+    /// <summary>Memos eşitlemesi (Ayarlar ve tray bu nesneyi kullanır). Açılışta kurulur.</summary>
+    public SyncService? Sync { get; private set; }
 
     public static string DefaultDataDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StickyNotes");
@@ -75,6 +79,11 @@ public partial class App : Application
             _manager.HotkeysSuspendedChanged += RegisterHotkeys;
             RegisterHotkeys();
             _manager.Startup();
+            Sync = new SyncService(_manager, ShowBalloon);
+            Sync.StatusChanged += UpdateSyncStatus;
+            Sync.Start();
+            UpdateSyncStatus();
+            _ = Sync.RunAsync(resume: false);   // açılış turu (ayarlar kapalıysa hiçbir şey yapmaz)
             // Test/ekran görüntüsü yardımcısı: tray menüsünü ekranda açar (gizli simge alanını denemeden).
             if (e.Args.Contains("--show-tray-menu"))
                 Dispatcher.BeginInvoke(() =>
@@ -144,6 +153,10 @@ public partial class App : Application
             (Current.Windows.OfType<ExplorerWindow>().FirstOrDefault())?.ShowTrash();
         }));
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+        _syncStatusItem = new System.Windows.Forms.ToolStripMenuItem("Memos: kapalı") { Enabled = false };
+        menu.Items.Add(_syncStatusItem);
+        menu.Items.Add("Şimdi eşitle", null, (_, _) => Dispatcher.Invoke(RunSyncNow));
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
         menu.Items.Add("Çıkış", null, (_, _) => Dispatcher.Invoke(ExitApp));
 
         ThemedMenuRenderer.Apply(menu);
@@ -159,10 +172,22 @@ public partial class App : Application
         _tray.DoubleClick += (_, _) => Dispatcher.Invoke(() => _manager!.NewNote());
     }
 
+    private void RunSyncNow() => _ = Sync?.RunNowAsync();
+
+    private void UpdateSyncStatus()
+    {
+        if (_syncStatusItem != null && Sync != null) _syncStatusItem.Text = Sync.StatusText();
+    }
+
+    /// <summary>Tek seferlik tray uyarısı (SyncService yineleri eler).</summary>
+    private void ShowBalloon(string title, string text) =>
+        _tray?.ShowBalloonTip(10000, title, text, System.Windows.Forms.ToolTipIcon.Warning);
+
     private void ExitApp()
     {
         if (_exiting) return;
         _exiting = true;
+        try { Sync?.Stop(); } catch (Exception ex) { AppLog.Error("Eşitleme durdurma hatası", ex); }
         try { _hotkeys?.Dispose(); _hotkeys = null; } catch (Exception ex) { AppLog.Error("Kısayol temizleme hatası", ex); }
         try { _manager?.Shutdown(); } catch (Exception ex) { AppLog.Error("Shutdown hatası", ex); }
         if (_tray != null)

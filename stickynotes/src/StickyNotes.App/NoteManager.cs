@@ -134,6 +134,7 @@ public sealed class NoteManager
         var note = Repo.Get(id);
         if (note == null || note.IsDeleted) return null;
         var w = new NoteWindow(this, new NoteViewModel(note));
+        ApplyAccess(w.Vm, id);
         w.ApplySettings(Settings);
         w.Restore(Repo.GetWindow(id), _cascade++, Settings);
         _windows[id] = w;
@@ -141,6 +142,52 @@ public sealed class NoteManager
         w.Flush();
         NotifyChanged();
         return w;
+    }
+
+    /// <summary>Memos eşlemesine göre salt okunur durumunu ve yazar adını VM'e işler (eşlenmemiş not düzenlenebilir).</summary>
+    private void ApplyAccess(NoteViewModel vm, string noteId)
+    {
+        var rec = Repo.ListSyncState().FirstOrDefault(r => r.NoteId == noteId);
+        vm.SetAccess(rec?.ReadOnly ?? false, rec == null ? "" : (string.IsNullOrWhiteSpace(rec.CreatorName) ? rec.Creator : rec.CreatorName));
+    }
+
+    /// <summary>Açık tüm notların bekleyen değişikliklerini diske yazar (eşitleme turu öncesi).</summary>
+    public void FlushAll()
+    {
+        foreach (var w in _windows.Values.ToList()) w.Flush();
+    }
+
+    /// <summary>Not şu an düzenleniyor mu (odakta ya da kaydedilmemiş yazı var). Eşitleme bu notlara uzak değişiklik uygulamaz.</summary>
+    public bool IsBusy(string id) =>
+        _windows.TryGetValue(id, out var w) && (w.IsKeyboardFocusWithin || w.Vm.IsDirty);
+
+    /// <summary>Eşitleme uzak içeriği yerel nota yazdığı anda çağrılır: açık pencere aynı anda yenilenir.</summary>
+    public void OnRemoteApplied(string id)
+    {
+        if (!_windows.TryGetValue(id, out var w)) return;
+        var note = Repo.Get(id);
+        if (note != null && !note.IsDeleted && !w.IsKeyboardFocusWithin && !w.Vm.IsDirty) w.ReloadFromNote(note);
+    }
+
+    /// <summary>
+    /// Eşitleme turundan sonra: uzakta arşivlenen notların pencerelerini kapatır ve salt okunur durumunu günceller.
+    /// Uzak içerik yükleme işi <see cref="OnRemoteApplied"/>'da yapılır.
+    /// </summary>
+    public void RefreshAfterSync()
+    {
+        foreach (var (id, w) in _windows.ToList())
+        {
+            var note = Repo.Get(id);
+            if (note == null || note.IsDeleted)
+            {
+                _windows.Remove(id);
+                w.Flush();          // düzenlenmiş yazı çöpteki nota kalsın
+                w.CloseForReal();
+                continue;
+            }
+            ApplyAccess(w.Vm, id);
+        }
+        NotifyChanged();
     }
 
     public void ShowAll()

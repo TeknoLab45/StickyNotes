@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using StickyNotes.Core.Sync;
 
 namespace StickyNotes.Core;
 
@@ -46,8 +47,131 @@ public sealed class NoteRepository
             is_open INTEGER NOT NULL);");
         // Bu PC'ye özel ayarlar (senkronizasyona girmez). Eski DB'lerde yoksa burada oluşur.
         Exec(c, "CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);");
+        // Memos eşitleme eşlemesi (yerel, senkronizasyona girmez). Silinen notun satırı mezar taşı olarak kalır.
+        Exec(c, @"CREATE TABLE IF NOT EXISTS sync_state(
+            note_id TEXT PRIMARY KEY,
+            memo_name TEXT NOT NULL,
+            space TEXT NOT NULL,
+            creator TEXT NOT NULL DEFAULT '',
+            creator_name TEXT NOT NULL DEFAULT '',
+            read_only INTEGER NOT NULL DEFAULT 0,
+            remote_update_time TEXT NULL,
+            synced_hash TEXT NULL,
+            synced_at TEXT NULL);");
+        Exec(c, "CREATE UNIQUE INDEX IF NOT EXISTS sync_state_memo ON sync_state(memo_name);");
         MigrateNotes(c);
         MigrateWindowState(c);
+    }
+
+    // ---- Memos eşitlemesi ----
+
+    /// <summary>Memos ayarlarını okur (settings tablosunda memos_* anahtarları).</summary>
+    public Sync.SyncSettings LoadSyncSettings()
+    {
+        var kv = new Dictionary<string, string>();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT key,value FROM settings WHERE key LIKE 'memos_%'";
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) kv[r.GetString(0)] = r.GetString(1);
+        return Sync.SyncSettings.FromPairs(kv);
+    }
+
+    public void SaveSyncSettings(Sync.SyncSettings settings)
+    {
+        using var c = Open();
+        using var tx = c.BeginTransaction();
+        foreach (var (k, v) in settings.Normalized().ToPairs())
+        {
+            using var cmd = c.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "INSERT INTO settings(key,value) VALUES($k,$v) ON CONFLICT(key) DO UPDATE SET value=$v";
+            cmd.Parameters.AddWithValue("$k", k);
+            cmd.Parameters.AddWithValue("$v", v);
+            cmd.ExecuteNonQuery();
+        }
+        tx.Commit();
+    }
+
+    /// <summary>Tüm eşlemeler (tüm Space'ler). Kalıcı silinmiş notların satırı da döner.</summary>
+    public List<SyncRecord> ListSyncState()
+    {
+        var res = new List<SyncRecord>();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT note_id,memo_name,space,creator,creator_name,read_only,remote_update_time,synced_hash,synced_at FROM sync_state";
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            res.Add(new SyncRecord(
+                r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetString(4),
+                r.GetInt32(5) != 0,
+                r.IsDBNull(6) ? null : ParseTs(r.GetString(6)),
+                r.IsDBNull(7) ? null : r.GetString(7),
+                r.IsDBNull(8) ? null : ParseTs(r.GetString(8))));
+        }
+        return res;
+    }
+
+    /// <summary>Eşlemeyi yazar (ekler ya da günceller). Her başarılı uzak işlemden hemen sonra çağrılır.</summary>
+    public void MarkSynced(SyncRecord r)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"INSERT INTO sync_state(note_id,memo_name,space,creator,creator_name,read_only,remote_update_time,synced_hash,synced_at)
+            VALUES($id,$m,$s,$cr,$crn,$ro,$rut,$h,$at)
+            ON CONFLICT(note_id) DO UPDATE SET memo_name=$m,space=$s,creator=$cr,creator_name=$crn,read_only=$ro,
+              remote_update_time=$rut,synced_hash=$h,synced_at=$at";
+        cmd.Parameters.AddWithValue("$id", r.NoteId);
+        cmd.Parameters.AddWithValue("$m", r.MemoName);
+        cmd.Parameters.AddWithValue("$s", r.Space);
+        cmd.Parameters.AddWithValue("$cr", r.Creator);
+        cmd.Parameters.AddWithValue("$crn", r.CreatorName);
+        cmd.Parameters.AddWithValue("$ro", r.ReadOnly ? 1 : 0);
+        cmd.Parameters.AddWithValue("$rut", r.RemoteUpdateTime is { } rut ? Ts(rut) : DBNull.Value);
+        cmd.Parameters.AddWithValue("$h", (object?)r.SyncedHash ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$at", r.SyncedAt is { } at ? Ts(at) : DBNull.Value);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>Uzaktan gelen not için yerel kayıt oluşturur (kimlik verilir). deletedAt doluysa çöpte başlar.</summary>
+    public void InsertRemote(string id, string type, string content, DateTime editedAt, DateTime? deletedAt)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "INSERT INTO notes(id,type,content,color,edited_at,deleted_at) VALUES($id,$t,$c,$col,$e,$d)";
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.Parameters.AddWithValue("$t", type);
+        cmd.Parameters.AddWithValue("$c", content);
+        cmd.Parameters.AddWithValue("$col", NoteColors.Default);
+        cmd.Parameters.AddWithValue("$e", Ts(editedAt));
+        cmd.Parameters.AddWithValue("$d", deletedAt is { } d ? Ts(d) : DBNull.Value);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>Uzak içeriği uygular (tür, içerik, düzenleme zamanı). Renk, opaklık ve çöp durumu korunur.</summary>
+    public void ApplyRemote(string noteId, string type, string content, DateTime editedAt)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE notes SET type=$t,content=$c,edited_at=$e WHERE id=$id AND purged_at IS NULL";
+        cmd.Parameters.AddWithValue("$t", type);
+        cmd.Parameters.AddWithValue("$c", content);
+        cmd.Parameters.AddWithValue("$e", Ts(editedAt));
+        cmd.Parameters.AddWithValue("$id", noteId);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>Kalıcı silinmemiş tüm notlar (çöptekiler dahil). Eşitleme için.</summary>
+    public List<Note> ListForSync()
+    {
+        var res = new List<Note>();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = $"SELECT {Cols} FROM notes WHERE purged_at IS NULL ORDER BY edited_at";
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) res.Add(Read(r));
+        return res;
     }
 
     /// <summary>Ayarları okur; satır yoksa/bozuksa varsayılan.</summary>

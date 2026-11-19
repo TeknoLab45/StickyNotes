@@ -11,7 +11,8 @@ using StickyNotes.Core;
 
 namespace StickyNotes.App;
 
-public sealed record ExplorerRow(string Id, Brush Brush, string Title, string Preview, string Date);
+/// <summary>Liste satırı. ReadOnly: Memos'ta başka kullanıcının notu. Unlinked: eski Space'e bağlı (eşitlenmiyor).</summary>
+public sealed record ExplorerRow(string Id, Brush Brush, string Title, string Preview, string Date, bool ReadOnly, bool Unlinked);
 
 public partial class ExplorerWindow : Window
 {
@@ -78,12 +79,20 @@ public partial class ExplorerWindow : Window
         if (!trash && _sortByCreated) notes = notes.OrderByDescending(n => n.CreatedAt).ToList();
 
         var now = DateTime.Now;
-        var rows = notes.Select(n => new ExplorerRow(
-            n.Id,
-            NoteTheme.Strip(n.Color),
-            NoteContent.FirstLine(n.Type, n.Content),
-            NoteContent.Preview(n.Type, n.Content),
-            DateText.Relative(trash ? n.DeletedAt ?? n.EditedAt : _sortByCreated ? n.CreatedAt : n.EditedAt, now))).ToList();
+        var sync = _manager.Repo.ListSyncState().ToDictionary(r => r.NoteId);
+        var space = _manager.Repo.LoadSyncSettings().Space;
+        var rows = notes.Select(n =>
+        {
+            var linked = sync.TryGetValue(n.Id, out var rec);
+            return new ExplorerRow(
+                n.Id,
+                NoteTheme.Strip(n.Color),
+                NoteContent.FirstLine(n.Type, n.Content),
+                NoteContent.Preview(n.Type, n.Content),
+                DateText.Relative(trash ? n.DeletedAt ?? n.EditedAt : _sortByCreated ? n.CreatedAt : n.EditedAt, now),
+                linked && rec!.ReadOnly,
+                linked && rec!.Space != space);
+        }).ToList();
 
         // Seçimi koru (yenilemede kaybolmasın)
         var sel = Selected().Select(r => r.Id).ToHashSet();

@@ -102,8 +102,36 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                             </StackPanel>
-                            <TextBlock Grid.Column="2" Text="{Binding Date}" Foreground="{StaticResource InkSoftBrush}"
-                                       FontSize="12" Margin="12,0,0,0" VerticalAlignment="Top"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Top">
+                                <TextBlock Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="11" Foreground="#80000000"
+                                           Margin="0,1,6,0" ToolTip="Salt okunur (Memos'ta başka kullanıcının notu)"
+                                           AutomationProperties.AutomationId="RowLock">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ReadOnly}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="bağlantısız" FontSize="11" Foreground="#B45309" Margin="0,0,6,0"
+                                           ToolTip="Eski Space'e bağlı: bu not artık eşitlenmiyor" AutomationProperties.AutomationId="RowUnlinked">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Unlinked}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="{Binding Date}" Foreground="{StaticResource InkSoftBrush}" FontSize="12"/>
+                            </StackPanel>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>

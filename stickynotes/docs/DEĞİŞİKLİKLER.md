@@ -1,5 +1,65 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-19 — TEK-170 — CoderAgent: Ayarlar küçük ekran düzeltmesi, main'e merge
+
+**Ne:** Ayarlar penceresi 800 px yüksekliğindeki ekranda artık çalışma alanını aşmıyor: `ScrollViewer` üzerindeki sabit `MaxHeight="720"` kaldırıldı, pencerenin `MaxHeight`'i `SystemParameters.WorkArea.Height` yapıldı, içerik kaydırılıyor (Memos bölümünün alt kısmı, Space seçimi ve durum satırı erişilebilir). Token kaydedilince "Kaydet" düğmesi "Kaydedildi ✓" olur; yeni bir token yazılınca "Kaydet"e döner.
+
+**Dosyalar (`stickynotes/`):**
+- `src/StickyNotes.App/SettingsWindow.xaml`: `ScrollViewer` `MaxHeight` kaldırıldı; `MemosTokenBox` `PasswordChanged="MemosToken_Changed"`; `MemosTokenSaveButton` `x:Name` eklendi.
+- `src/StickyNotes.App/SettingsWindow.xaml.cs`: kurucuda `MaxHeight = SystemParameters.WorkArea.Height`; `MemosTokenSave_Click` düğme etiketini günceller; `MemosToken_Changed` yeni.
+- `docs/DEĞİŞİKLİKLER.md`: bu madde.
+
+**Doğrulama (bu makine: Linux, `/home/dietpi/.dotnet/dotnet`, 10.0.403):**
+- `dotnet build StickyNotes.slnx -p:EnableWindowsTargeting=true` → 0 uyarı, 0 hata.
+- `dotnet test tests/StickyNotes.Core.Tests -p:EnableWindowsTargeting=true` → 126 geçti, 1 atlandı (`MemosLiveTests`, Docker Memos yok).
+- **Yapılmadı:** WPF penceresi Windows'ta açılıp 800 px ekranda görsel doğrulanmadı; yeni exe derlenmedi.
+
+**Kısıtlar / açık:**
+- Bu düzeltme TEK-169'daki `StickyNotes.exe`'ye dahil değil. Düzeltmeli exe için WinVMAgent'ın yeniden publish etmesi gerekir.
+
+## 2026-11-19 — TEK-168 — CoderAgent: Memos arayüzü, salt okunur not, tray, token (G3 kodu, sürüm 0.2.0)
+
+**Ne:** StickyNotes'a Memos bağlantısı eklendi: Ayarlar'da Memos bölümü (adres, token, bağlantı testi, Space seçimi, görünürlük, aralık, "Şimdi eşitle"/"Yine de eşitle"), token'ın DPAPI ile şifrelenmesi, eşitlemeyi çalıştıran zamanlayıcı ve kayıttan 5 sn sonra tetikleme, başka kullanıcıların notlarında salt okunur mod (kilit simgesi), tray'de "Memos" durum satırı ve "Şimdi eşitle", tek seferlik tray uyarıları. Sürüm 0.1.0 → 0.2.0. Exe derlemesi/yayını bu issue'da yok (WinVMAgent işi).
+
+**Dosyalar (`stickynotes/`):**
+- `src/StickyNotes.App/TokenStore.cs` (yeni): DPAPI (CurrentUser) şifreleme; düz token hiçbir yere yazılmaz.
+- `src/StickyNotes.App/SyncService.cs` (yeni): zamanlayıcı, 5 sn debounce, tur kilidi, tur sırasında gelen tetiklere tek tekrar, algılanan API kökü ve duraklatma durumunun kalıcı kaydı, tray durum metni, tek seferlik uyarılar.
+- `src/StickyNotes.App/SettingsWindow.xaml(.cs)`: "Memos eşitleme" bölümü; Space değişiminde onay (eski Space'teki not sayısı); pencere artık `ScrollViewer` içinde (`MaxHeight` 720).
+- `src/StickyNotes.App/NoteViewModel.cs`: `IsReadOnly`, `ReadOnlyAuthor`, `SetAccess`, `ReloadFrom`; salt okunurda `ToggleType` yapılmaz.
+- Düzeltme (GERİ, ReviewerAgent): `SyncEngine` odakta/kaydedilmemiş notlara uzak değişikliği uygulamaz (`isBusy`, `Deferred` sayacı; 2 yeni Core testi); `onRemoteApplied` ile açık pencere uzak içeriği anında alır. `resume` bayrağı kuyrukta korunur. Beklenmeyen hata sonrası durum metni tutarlı. Explorer'da kilit ve "bağlantısız" işareti eklendi (`ExplorerWindow.xaml(.cs)`). `CLIENT.md` çöp kuralı düzeltildi.
+- `src/StickyNotes.App/NoteWindow.xaml(.cs)`: salt okunurda editör `IsReadOnly`, checklist kutucukları ve metinleri kilitli, biçim kısayolları kapalı; şeritte kilit simgesi; `ReloadFromNote`.
+- `src/StickyNotes.App/NoteManager.cs`: `FlushAll`, `RefreshAfterSync` (uzakta arşivlenen notun penceresi kapanır, odakta olmayan pencere uzak içeriği alır), açılışta salt okunur durumu uygulama.
+- `src/StickyNotes.App/App.xaml.cs`: `SyncService` kurulumu, tray menüsüne "Memos: …" satırı ve "Şimdi eşitle", çıkışta zamanlayıcı durdurma.
+- `src/StickyNotes.App/StickyNotes.App.csproj`: `<Version>0.2.0</Version>`.
+- `tools/ui-test/tek166.ps1` (yeni): Windows UI senaryoları (bağlantı, Space, ilk eşitleme, web↔not, salt okunur, çevrimdışı beklemesi).
+- `docs/CLIENT.md`, `docs/SENKRON.md`, `README.md`, `docs/DEĞİŞİKLİKLER.md`.
+
+**Doğrulama (bu makine: Linux, aarch64):**
+- `dotnet build StickyNotes.slnx -p:EnableWindowsTargeting=true` → 0 hata, 0 uyarı (App dahil; WPF çalıştırılmadı).
+- `dotnet test tests/StickyNotes.Core.Tests` → 124 geçti, 1 atlandı (`MemosLiveTests`, Docker Memos yok). Core'a dokunulmadı.
+- **Yapılmadı:** Windows'ta çalıştırma, `tek166.ps1` koşusu, ekran görüntüleri, Docker Memos (0.31 / 26.11.1) ile uçtan uca test, win-x64 publish, `StickyNotes.exe` güncellemesi.
+
+**Kısıtlar / açık:**
+- Düzenlenen not (odakta ya da kaydedilmemiş yazı) o turda güncellenmez; uzak değişiklik bir sonraki turda uygulanır. Tur sırasında uygulanan uzak içerik açık pencereye aynı anda yazılır.
+- Sunucuda yeni gelen notlar için pencere açılmaz; Explorer'dan açılır.
+- Sync kapalıyken de salt okunur işaret kalır (not, eşlendiği için yerelde düzenlenmez).
+
+## 2026-11-19 — TEK-167 — CoderAgent: Memos eşitlemesi Core (G1 + G2)
+
+**Ne:** Memos (0.31 ve 26.x) ile Space tabanlı iki yönlü eşitlemenin WPF'siz Core katmanı. Markdown dönüşümü, Memos istemcisi (kök algılama, PAT, hata türleri), eşleme tablosu `sync_state`, eşitleme turu (`SyncEngine`) ve ayarlar (`SyncSettings`). Arayüz, token saklama ve exe bu issue'da yok (G3–G4).
+
+**Dosyalar (`stickynotes/`):**
+- `src/StickyNotes.Core/Sync/MemoMarkdown.cs` (yeni), `MemosClient.cs` (yeni), `SyncEngine.cs` (yeni), `SyncSettings.cs` (yeni)
+- `src/StickyNotes.Core/NoteRepository.cs`: `sync_state` tablosu, `LoadSyncSettings`/`SaveSyncSettings`, `ListSyncState`, `MarkSynced`, `InsertRemote`, `ApplyRemote`, `ListForSync`
+- `tests/StickyNotes.Core.Tests/`: `MemoMarkdownTests.cs`, `MemosClientTests.cs`, `SyncEngineTests.cs`, `SyncFakes.cs`, `MemosLiveTests.cs` (yeni)
+- `docs/SENKRON.md` (yeni), `docs/README.md` (indeks)
+
+**Doğrulama:**
+- `dotnet test tests/StickyNotes.Core.Tests` → 124 geçti, 1 atlandı (80 mevcut + 45 yeni). Canlı test (`MemosLiveTests`) ortam değişkenleri yoksa Skipped görünür.
+- Canlı test, Docker'daki iki sunucuda geçti (GERİ turu sonrası yeniden çalıştırıldı): `neosmemo/memos:0.31.0` (port 5231) ve `neosmemo/memos:26.11.1` (port 5232). Bulgular `docs/SENKRON.md` içinde.
+
+**Kısıtlar / açık:** Token ayarları sayfasının web yolu doğrulanmadı (G3). Space değiştirme, iki PC aynı UUID, uzun çevrimdışı ve DB yeniden kurulumu otomatik test edilmedi. Ayrıntı `docs/SENKRON.md`.
+
 ## 2026-11-18 — TEK-155 — CoderAgent: RichTextBox, Ctrl+B/Ctrl+U, sağ tık menüsü, düz metin yapıştırma (Görev B)
 
 **Ne:** Metin notları `TextBox`'tan `RichTextBox`'a geçti. Seçili yazıya Ctrl+B kalın, Ctrl+U altı çizili, üstü çizili yalnızca sağ tık menüsünde. Sağ tık menüsü kısa (Kalın, Altı çizili, Üstü çizili, ayraç, Kes, Kopyala, Yapıştır). Yapıştırma yalnızca düz metin. Biçim `marks` olarak saklanır (TEK-154 Core). Eski düz metin notlar biçimsiz açılır; yalnızca açmak `edited_at`'i değiştirmez.
