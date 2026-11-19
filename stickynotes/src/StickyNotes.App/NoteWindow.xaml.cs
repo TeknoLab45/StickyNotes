@@ -227,6 +227,13 @@ public partial class NoteWindow : Window
         _manager.SaveNote(Vm, this);
     }
 
+    /// <summary>Uzaktan yüklenen içeriği düzenleyiciye yansıtır (VM zaten güncellenmiş olmalı).</summary>
+    public void ReloadFromNote(Core.Note note)
+    {
+        Vm.ReloadFrom(note);
+        LoadEditor();
+    }
+
     public void FocusBody()
     {
         if (Vm.IsChecklist)
@@ -301,7 +308,7 @@ public partial class NoteWindow : Window
     /// <summary>Seçili yazının biçimini açar/kapatır (seçim yoksa hiçbir şey yapmaz).</summary>
     private void ToggleMark(string type)
     {
-        if (TextEditor.Selection.IsEmpty) return;
+        if (Vm.IsReadOnly || TextEditor.Selection.IsEmpty) return;
         var doc = TextEditor.Document;
         var (text, marks) = RichTextMapper.Read(doc);
         var start = RichTextMapper.GetOffset(doc, TextEditor.Selection.Start);
@@ -479,9 +486,15 @@ public partial class NoteWindow : Window
 
     // ---------- Checklist klavye davranışı ----------
 
+    /// <summary>Salt okunur checklistte yalnızca gezinme ve kopyalama tuşları geçer; diğer her şey engellenir.</summary>
+    private static bool IsReadOnlyNavigationKey(Key key) =>
+        key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End or Key.PageUp or Key.PageDown
+        || Keyboard.Modifiers == ModifierKeys.Control;
+
     private void ItemText_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (sender is not TextBox tb || tb.DataContext is not ChecklistItemViewModel item) return;
+        if (Vm.IsReadOnly && !IsReadOnlyNavigationKey(e.Key)) { e.Handled = true; return; }
         var idx = Vm.Items.IndexOf(item);
         if (idx < 0) return;
 

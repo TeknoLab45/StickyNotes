@@ -134,6 +134,7 @@ public sealed class NoteManager
         var note = Repo.Get(id);
         if (note == null || note.IsDeleted) return null;
         var w = new NoteWindow(this, new NoteViewModel(note));
+        ApplyAccess(w.Vm, id);
         w.ApplySettings(Settings);
         w.Restore(Repo.GetWindow(id), _cascade++, Settings);
         _windows[id] = w;
@@ -141,6 +142,41 @@ public sealed class NoteManager
         w.Flush();
         NotifyChanged();
         return w;
+    }
+
+    /// <summary>Memos eşlemesine göre salt okunur durumunu ve yazar adını VM'e işler (eşlenmemiş not düzenlenebilir).</summary>
+    private void ApplyAccess(NoteViewModel vm, string noteId)
+    {
+        var rec = Repo.ListSyncState().FirstOrDefault(r => r.NoteId == noteId);
+        vm.SetAccess(rec?.ReadOnly ?? false, rec == null ? "" : (string.IsNullOrWhiteSpace(rec.CreatorName) ? rec.Creator : rec.CreatorName));
+    }
+
+    /// <summary>Açık tüm notların bekleyen değişikliklerini diske yazar (eşitleme turu öncesi).</summary>
+    public void FlushAll()
+    {
+        foreach (var w in _windows.Values.ToList()) w.Flush();
+    }
+
+    /// <summary>
+    /// Eşitleme turundan sonra: uzakta arşivlenen notların pencerelerini kapatır, diğerlerinde uzak içeriği
+    /// yükler (odakta yazılan not korunur) ve salt okunur durumunu günceller.
+    /// </summary>
+    public void RefreshAfterSync()
+    {
+        foreach (var (id, w) in _windows.ToList())
+        {
+            var note = Repo.Get(id);
+            if (note == null || note.IsDeleted)
+            {
+                _windows.Remove(id);
+                w.CloseForReal();   // kayıt yazılmaz: içerik zaten çöpte
+                continue;
+            }
+            if (!w.IsKeyboardFocusWithin && w.Vm.SavedSignature != note.Type + "|" + note.Color + "|" + note.Content)
+                w.ReloadFromNote(note);
+            ApplyAccess(w.Vm, id);
+        }
+        NotifyChanged();
     }
 
     public void ShowAll()

@@ -21,6 +21,26 @@
   Not menüsünde (renk düğmesi) "Bu notu varsayılan yap" o notun renk/opaklık/boyut/türünü varsayılan yapar.
 - Pencere konumu/boyutu/açık-gizli durumu ve içerik kaydedilir; yeniden açılışta geri gelir.
 
+## Memos eşitleme (TEK-168)
+Ayarlar → **Memos eşitleme** (bu PC'ye özel; `settings` tablosundaki `memos_*` anahtarları):
+1. **Sunucu adresi**: örn. `http://192.168.1.10:5230`.
+2. **Token al**: tarayıcıda Memos'un `/setting#access-token` sayfasını açar; orada token oluşturup kopyalayın (`memos_pat_…`), sonra **Token** kutusuna yapıştırıp **Kaydet**'e basın. Token DPAPI ile şifrelenir (bu Windows hesabına bağlı); düz metin olarak saklanmaz, günlüğe yazılmaz.
+3. **Bağlantıyı test et**: sunucu kökünü algılar (Memos 26.x `/api`, 0.31 `/api/v1`), kimliği doğrular, üyesi olunan Space'leri listeler. Memos **0.31 veya üstü** gerekir.
+4. **Alan (Space)** seçin. Space seçilmeden "Eşitleme açık" işaretlenmez. **Görünürlük**: varsayılan "Alan üyeleri (SPACE)", isteğe bağlı "Özel (PRIVATE)". **Eşitleme aralığı**: 1–60 dk (varsayılan 2).
+- Eşitleme tetikleyicileri: uygulama açılışı, aralık, **Şimdi eşitle** (ayarlarda ve tray'de), kayıttan 5 sn sonra. "Yine de eşitle" yalnızca eşitleme duraklatıldıysa görünür.
+- Duraklatma: token geçersizse (401), Space bulunamazsa, ya da sunucuda çok sayıda memo "kayıp" görünürse eşitleme durur; tray'de tek seferlik uyarı çıkar. Düzeltince "Yine de eşitle" ile devam edin.
+
+**Eşitlenenler ve kurallar**
+- Seçilen Space'teki tüm memolar (yazarı kim olursa olsun) yerel nota gelir. Yerelde yazdığınız notlar Space'e gönderilir.
+- Başka kullanıcının notu **salt okunur** açılır: metin, checklist, biçim, yapıştırma ve tür değişikliği kapalıdır; renk, opaklık, konum, daralt ve çöpe atma (yalnızca bu PC'den gizler) açıktır. Şeritte kilit simgesi görünür.
+- İki tarafta da değişen not çakışırsa yerel sürüm korunur, sunucu sürümü "(çakışma kopyası)" adıyla yeni not olur.
+- Yerelde çöpe atılan not sunucuda **silinmez**, arşivlenmez; sunucuda arşivlenen not yerelde çöpe gider.
+- Çevrimdışıyken değişiklikler yerelde kalır; tray "Çevrimdışı · N değişiklik bekliyor" yazar, bağlantı gelince tek turda gönderilir.
+- **Space değiştirilirse** eski Space'teki notlar yerelde kalır ama artık eşitlenmez (onay sorulur).
+- **Uyarı:** bir Space Memos'ta silinirse içindeki memolar sunucuda kalıcı olarak silinir. Eşitleme bu durumu algılayıp duraklatır, yerel notları silmez.
+
+Bilinen kısıtlar: uzak bir değişiklik, o notta siz yazarken gelirse yerel sürüm korunur (ertelenmez). Explorer'da kilit simgesi yok. Uzaktan yeni gelen notlar için pencere açılmaz (Explorer'dan açılır). Ayrıntı ve Docker doğrulama bulguları: `docs/SENKRON.md`.
+
 ## Veri ve log
 - Varsayılan: `%LOCALAPPDATA%\StickyNotes\notes.db`, log: `%LOCALAPPDATA%\StickyNotes\logs\app.log`.
 - `StickyNotes.exe --data-dir <yol>` ile değiştirilir (db ve log o klasörde).
@@ -39,6 +59,6 @@ Linux'ta yalnızca derleme kontrolü (WPF çalışmaz): `dotnet build src/Sticky
 Gereksinim: .NET SDK 10 (net10.0-windows). İkonu yeniden üretmek için `tools/make-icon.ps1`.
 
 ## Test verisi ve elle UI testi
-`dotnet run --project tools/seed -- <data-dir> [adet] [opaque]` gerçekçi test notları yazar (`--dump <data-dir>` kayıtlı opaklıkları listeler). `StickyNotes.exe --show-tray-menu` tray menüsünü ekranda açar. Senaryolar: `tools/ui-test/tek150a/b/d/e.ps1`, `tek151a/b/c/d.ps1`, biçim için `tek152.ps1` (+`lib150.ps1`, `backdrop.ps1`, `holdkey.ps1` = başka programın kısayolu tutmasını taklit eder). RichTextBox'a yazmak için `Set-Editor` (ui.ps1) kullanılır. `--dump` tür, pencere durumu ve ayarları da yazar.
+`dotnet run --project tools/seed -- <data-dir> [adet] [opaque]` gerçekçi test notları yazar (`--dump <data-dir>` kayıtlı opaklıkları listeler). `StickyNotes.exe --show-tray-menu` tray menüsünü ekranda açar. Memos: `tools/ui-test/tek166.ps1` (Docker Memos ve `MEMOS_TEST_URL`/`MEMOS_TEST_TOKEN`/`MEMOS_TEST_SPACE` gerekir; Ayarlar'ı tray'den açın). Senaryolar: `tools/ui-test/tek150a/b/d/e.ps1`, `tek151a/b/c/d.ps1`, biçim için `tek152.ps1` (+`lib150.ps1`, `backdrop.ps1`, `holdkey.ps1` = başka programın kısayolu tutmasını taklit eder). RichTextBox'a yazmak için `Set-Editor` (ui.ps1) kullanılır. `--dump` tür, pencere durumu ve ayarları da yazar.
 
 `tools/ui-test/ui.ps1` UI Automation + SendKeys yardımcılarını içerir (ekran görüntüleri `SHOT_DIR` ortam değişkenindeki klasöre, yoksa temp klasörüne yazılır) (`run.sh <senaryo.ps1>` ile yüklenir).

@@ -75,8 +75,8 @@ Otomatik testte olanlar (`SyncEngineTests.cs`, `SyncScenarioTests.cs`):
 - 403 (PATCH) → salt okunura geçiş ve kopya; 403 (POST) → not yerelde kalır, diğerleri gönderilir.
 
 Açık kalan:
-- App katmanındaki tek örnek kilidi ve tray davranışı (G3).
-- Token saklama ve Ayarlar arayüzü (G3), exe (G4).
+- Arayüz (G3) kodlandı (TEK-168): `SyncService`, `TokenStore` (DPAPI), Ayarlar'da Memos bölümü, salt okunur not, tray. Windows'ta çalıştırılmadı; `tools/ui-test/tek166.ps1` bekliyor.
+- exe (G4): WinVMAgent işi.
 - Canlı Memos testi yalnızca `MEMOS_TEST_URL`, `MEMOS_TEST_TOKEN`, `MEMOS_TEST_SPACE` tanımlıysa çalışır; yoksa `Skipped` görünür (`Xunit.SkippableFact`).
 
 ## Testleri çalıştırma

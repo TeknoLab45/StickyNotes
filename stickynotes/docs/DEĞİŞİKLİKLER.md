@@ -1,5 +1,32 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-19 — TEK-168 — CoderAgent: Memos arayüzü, salt okunur not, tray, token (G3 kodu, sürüm 0.2.0)
+
+**Ne:** StickyNotes'a Memos bağlantısı eklendi: Ayarlar'da Memos bölümü (adres, token, bağlantı testi, Space seçimi, görünürlük, aralık, "Şimdi eşitle"/"Yine de eşitle"), token'ın DPAPI ile şifrelenmesi, eşitlemeyi çalıştıran zamanlayıcı ve kayıttan 5 sn sonra tetikleme, başka kullanıcıların notlarında salt okunur mod (kilit simgesi), tray'de "Memos" durum satırı ve "Şimdi eşitle", tek seferlik tray uyarıları. Sürüm 0.1.0 → 0.2.0. Exe derlemesi/yayını bu issue'da yok (WinVMAgent işi).
+
+**Dosyalar (`stickynotes/`):**
+- `src/StickyNotes.App/TokenStore.cs` (yeni): DPAPI (CurrentUser) şifreleme; düz token hiçbir yere yazılmaz.
+- `src/StickyNotes.App/SyncService.cs` (yeni): zamanlayıcı, 5 sn debounce, tur kilidi, tur sırasında gelen tetiklere tek tekrar, algılanan API kökü ve duraklatma durumunun kalıcı kaydı, tray durum metni, tek seferlik uyarılar.
+- `src/StickyNotes.App/SettingsWindow.xaml(.cs)`: "Memos eşitleme" bölümü; Space değişiminde onay (eski Space'teki not sayısı); pencere artık `ScrollViewer` içinde (`MaxHeight` 720).
+- `src/StickyNotes.App/NoteViewModel.cs`: `IsReadOnly`, `ReadOnlyAuthor`, `SetAccess`, `ReloadFrom`; salt okunurda `ToggleType` yapılmaz.
+- `src/StickyNotes.App/NoteWindow.xaml(.cs)`: salt okunurda editör `IsReadOnly`, checklist kutucukları ve metinleri kilitli, biçim kısayolları kapalı; şeritte kilit simgesi; `ReloadFromNote`.
+- `src/StickyNotes.App/NoteManager.cs`: `FlushAll`, `RefreshAfterSync` (uzakta arşivlenen notun penceresi kapanır, odakta olmayan pencere uzak içeriği alır), açılışta salt okunur durumu uygulama.
+- `src/StickyNotes.App/App.xaml.cs`: `SyncService` kurulumu, tray menüsüne "Memos: …" satırı ve "Şimdi eşitle", çıkışta zamanlayıcı durdurma.
+- `src/StickyNotes.App/StickyNotes.App.csproj`: `<Version>0.2.0</Version>`.
+- `tools/ui-test/tek166.ps1` (yeni): Windows UI senaryoları (bağlantı, Space, ilk eşitleme, web↔not, salt okunur, çevrimdışı beklemesi).
+- `docs/CLIENT.md`, `docs/SENKRON.md`, `README.md`, `docs/DEĞİŞİKLİKLER.md`.
+
+**Doğrulama (bu makine: Linux, aarch64):**
+- `dotnet build StickyNotes.slnx -p:EnableWindowsTargeting=true` → 0 hata, 0 uyarı (App dahil; WPF çalıştırılmadı).
+- `dotnet test tests/StickyNotes.Core.Tests` → 124 geçti, 1 atlandı (`MemosLiveTests`, Docker Memos yok). Core'a dokunulmadı.
+- **Yapılmadı:** Windows'ta çalıştırma, `tek166.ps1` koşusu, ekran görüntüleri, Docker Memos (0.31 / 26.11.1) ile uçtan uca test, win-x64 publish, `StickyNotes.exe` güncellemesi.
+
+**Kısıtlar / açık:**
+- Açık not, uzaktan gelen değişiklikte odaktaysa yerel sürüm korunur ve sonraki turda gönderilir; uzak değişiklik ertelenmez (Core'da erteleme yok).
+- Explorer'da kilit simgesi ve "bağlantısız" işareti yok (plan'da vardı, bu issue'da yapılmadı).
+- Sunucuda yeni gelen notlar için pencere açılmaz; Explorer'dan açılır.
+- Sync kapalıyken de salt okunur işaret kalır (not, eşlendiği için yerelde düzenlenmez).
+
 ## 2026-11-19 — TEK-167 — CoderAgent: Memos eşitlemesi Core (G1 + G2)
 
 **Ne:** Memos (0.31 ve 26.x) ile Space tabanlı iki yönlü eşitlemenin WPF'siz Core katmanı. Markdown dönüşümü, Memos istemcisi (kök algılama, PAT, hata türleri), eşleme tablosu `sync_state`, eşitleme turu (`SyncEngine`) ve ayarlar (`SyncSettings`). Arayüz, token saklama ve exe bu issue'da yok (G3–G4).
