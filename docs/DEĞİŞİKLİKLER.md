@@ -1,5 +1,11 @@
 # Değişiklikler
 
+## 2026-11-19 — TEK-163 — WinVMAgent
+
+- `stickynotes/` eklendi (StickyNotes kaynağı, TEK-162 ekinden) ve win-x64 self-contained tek dosya `stickynotes/StickyNotes.exe` (~73 MB) derlenip konuldu. `dotnet test`: 80/80 geçti.
+- `.gitignore`: `dist/` dışlı kalır, `!stickynotes/StickyNotes.exe` istisnası eklendi.
+- Kök README deneme tablosuna satır eklendi.
+
 ## 2026-11-19 — TEK-161 — CoderAgent
 
 - `README.md` eklendi: repo amacı, klasör, dal, terfi ve arşiv kuralları, boş deneme listesi.

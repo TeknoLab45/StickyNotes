@@ -26,3 +26,4 @@ Terk edilen veya taşınan denemeler, deneme listesinde durumu güncellenerek tu
 
 | Klasör | Amaç | Durum | Tarih | Issue |
 |--------|------|-------|-------|-------|
+| [stickynotes/](stickynotes/) | Windows tray yapışkan not uygulaması (WPF/.NET 10) | deneme, exe dahil | 2026-11-19 | TEK-162 |

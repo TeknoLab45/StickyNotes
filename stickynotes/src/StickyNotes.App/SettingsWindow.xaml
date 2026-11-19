@@ -1,0 +1,84 @@
+<Window x:Class="StickyNotes.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sticky Notes - Ayarlar" Width="500" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Topmost="True" Background="{StaticResource SurfaceBrush}" FontFamily="Segoe UI"
+        FontSize="13" Foreground="{StaticResource InkBrush}">
+    <Window.Resources>
+        <Style x:Key="Section" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,16,0,6"/>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{StaticResource InkSoftBrush}"/>
+        </Style>
+        <Style x:Key="Field" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Margin" Value="0,3"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+    </Window.Resources>
+    <StackPanel Margin="24,12,24,18">
+        <TextBlock Style="{StaticResource Section}" Text="Yazı (tüm notlara anında uygulanır)" Margin="0,4,0,6"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <TextBlock Style="{StaticResource Label}" Text="Yazı tipi"/>
+            <ComboBox x:Name="FontFamilyCombo" Grid.Column="1" Grid.ColumnSpan="2" SelectionChanged="Font_Changed" AutomationProperties.AutomationId="FontFamilyCombo"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Yazı boyutu (10–24)"/>
+            <Slider x:Name="FontSizeSlider" Grid.Row="1" Grid.Column="1" Minimum="10" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center" ValueChanged="FontSize_Changed" AutomationProperties.AutomationId="FontSizeSlider"/>
+            <TextBlock x:Name="FontSizeText" Grid.Row="1" Grid.Column="2" Style="{StaticResource Label}" HorizontalAlignment="Right"
+                       Foreground="{StaticResource InkBrush}" FontWeight="SemiBold" AutomationProperties.AutomationId="FontSizeText"/>
+            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Yazı stili"/>
+            <ComboBox x:Name="FontStyleCombo" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" SelectionChanged="Font_Changed" AutomationProperties.AutomationId="FontStyleCombo"/>
+        </Grid>
+
+        <TextBlock Style="{StaticResource Section}" Text="Yeni notlar için varsayılan"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <TextBlock Style="{StaticResource Label}" Text="Renk"/>
+            <ComboBox x:Name="DefColorCombo" Grid.Column="1" SelectionChanged="Defaults_Changed" AutomationProperties.AutomationId="DefColorCombo"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Opaklık"/>
+            <ComboBox x:Name="DefOpacityCombo" Grid.Row="1" Grid.Column="1" SelectionChanged="Defaults_Changed" AutomationProperties.AutomationId="DefOpacityCombo"/>
+            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Tür"/>
+            <ComboBox x:Name="DefTypeCombo" Grid.Row="2" Grid.Column="1" SelectionChanged="Defaults_Changed" AutomationProperties.AutomationId="DefTypeCombo"/>
+            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Genişlik (px)"/>
+            <TextBox x:Name="DefWidthBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource Field}" LostFocus="Size_Commit" KeyDown="Size_KeyDown"
+                     AutomationProperties.AutomationId="DefWidthBox"/>
+            <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="Yükseklik (px)"/>
+            <TextBox x:Name="DefHeightBox" Grid.Row="4" Grid.Column="1" Style="{StaticResource Field}" LostFocus="Size_Commit" KeyDown="Size_KeyDown"
+                     AutomationProperties.AutomationId="DefHeightBox"/>
+        </Grid>
+        <TextBlock Style="{StaticResource Label}" TextWrapping="Wrap" FontSize="11.5" Margin="0,4,0,0"
+                   Text="Notun renk menüsündeki &quot;Bu notu varsayılan yap&quot; da bu değerleri günceller."/>
+
+        <TextBlock Style="{StaticResource Section}" Text="Global kısayollar"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <TextBlock Style="{StaticResource Label}" Text="Tümünü gizle"/>
+            <TextBox x:Name="HkHideBox" Grid.Column="1" Style="{StaticResource Field}" Tag="hide" IsReadOnly="True" PreviewKeyDown="Hotkey_PreviewKeyDown" AutomationProperties.AutomationId="HotkeyHideBox"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Tümünü göster"/>
+            <TextBox x:Name="HkShowBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource Field}" Tag="show" IsReadOnly="True" PreviewKeyDown="Hotkey_PreviewKeyDown" AutomationProperties.AutomationId="HotkeyShowBox"/>
+            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Explorer"/>
+            <TextBox x:Name="HkExplorerBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource Field}" Tag="explorer" IsReadOnly="True" PreviewKeyDown="Hotkey_PreviewKeyDown" AutomationProperties.AutomationId="HotkeyExplorerBox"/>
+            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Yeni not"/>
+            <TextBox x:Name="HkNewBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource Field}" Tag="new" IsReadOnly="True" PreviewKeyDown="Hotkey_PreviewKeyDown" AutomationProperties.AutomationId="HotkeyNewBox"/>
+        </Grid>
+        <TextBlock Style="{StaticResource Label}" TextWrapping="Wrap" FontSize="11.5" Margin="0,4,0,0"
+                   Text="Kutuya tıklayıp yeni tuş birleşimine basın (en az bir Ctrl/Alt/Shift/Win). Backspace/Delete = kısayolu kapat."/>
+
+        <Button Content="Kapat" HorizontalAlignment="Right" MinWidth="90" Margin="0,18,0,0" IsCancel="True" IsDefault="True"
+                Click="Close_Click" AutomationProperties.AutomationId="CloseSettingsButton"/>
+    </StackPanel>
+</Window>
