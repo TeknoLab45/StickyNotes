@@ -196,10 +196,11 @@ public sealed class SyncService
         return LastSyncedAt is { } t ? $"Son eşitleme {t:HH:mm}" : "Memos: henüz eşitlenmedi";
     }
 
-    /// <summary>Henüz sunucuya eşlenmemiş yerel notlar (çevrimdışıyken bekleyen değişiklik sayısı).</summary>
+    /// <summary>Henüz sunucuya eşlenmemiş yerel notlar ve bekleyen silmeler (çevrimdışıyken bekleyen değişiklik sayısı).</summary>
     private int PendingCount(SyncSettings s)
     {
         var mapped = _manager.Repo.ListSyncState().Select(r => r.NoteId).ToHashSet();
-        return _manager.Repo.ListForSync().Count(n => !mapped.Contains(n.Id));
+        return _manager.Repo.ListForSync().Count(n => !mapped.Contains(n.Id))
+            + _manager.Repo.ListPendingDeletes(s.Space).Count;
     }
 }

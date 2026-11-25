@@ -4,7 +4,7 @@ Bu dosya TEK-167 kapsamını anlatır: StickyNotes ile Memos sunucusu arasında 
 
 ## Ne yapıldı
 
-- **Markdown dönüşümü** (`MemoMarkdown.cs`): kalın → `**x**`, üstü çizili → `~~x~~`, altı çizili sunucuya gitmez. Checklist → `- [ ] / - [x]`, girinti 2 boşluk. Yabancı markdown düz metin olarak korunur. Parmak izi (`Fingerprint`): sondaki boşluk yok sayılır, çöp durumu yalnızca düzenlenebilir notlarda sayılır.
+- **Markdown dönüşümü** (`MemoMarkdown.cs`): kalın → `**x**`, üstü çizili → `~~x~~`, altı çizili sunucuya gitmez. Checklist → `- [ ] / - [x]`, girinti 2 boşluk. Yabancı markdown düz metin olarak korunur. Parmak izi (`Fingerprint`): sondaki boşluk yok sayılır, çöp/arşiv durumu yalnızca düzenlenebilir notlarda sayılır.
 - **İstemci** (`MemosClient.cs`, `IMemosApi`): kök algılama (`/api` → `/api/v1`), Bearer PAT, sayfalı listeleme, hata türleri (`Unauthorized`, `Forbidden`, `NotFound` → null, `AlreadyExists`, `Offline`, `Version`). Token hiçbir hata metnine yazılmaz.
 - **Ayarlar** (`SyncSettings.cs`): `memos_*` anahtarları `settings` tablosunda (bu PC'ye özel). Token DPAPI ile App'te şifrelenir; Core yalnızca `memos_token_enc` metnini taşır.
 - **Eşleme tablosu** `sync_state` (`NoteRepository.cs`): not kimliği ↔ memo adı, Space, yazar, salt okunur bayrağı, son eşitlenen içerik parmak izi. Eski veritabanları için `CREATE TABLE IF NOT EXISTS`, veri kaybı yok.
@@ -14,7 +14,11 @@ Bu dosya TEK-167 kapsamını anlatır: StickyNotes ile Memos sunucusu arasında 
   3. Uzak memolar: yeni olanlar yerel nota çevrilir (32 hex kimlik → aynı UUID). Eşlenmişler için taban parmak izine göre: yalnızca uzak değişmiş → uygula; yalnızca yerel değişmiş → PATCH (salt okunursa kopya); ikisi de değişmiş → yerel kazanır, sunucu sürümü `(çakışma kopyası)` olarak yeni not olur.
   4. Eşlemesi olmayan yerel notlar `POST ?memoId=<uuid tiresiz>` ile gönderilir. 409 gelirse memo bizimse eşlenir, değilse yeni kimlikle tekrar denenir.
   - Her başarılı uzak işlemden hemen sonra `sync_state` yazılır: yarıda kesilen tur kaldığı yerden devam eder.
-  - Kalıcı silme (`Purge`) sunucuya hiçbir istek göndermez.
+  - **Silme (TEK-432, önceki "çöp = ARCHIVED, kalıcı silme sunucuya gitmez" kararının yerine):**
+    - Çöpe atma sunucuya istek göndermez. Çöpteki düzenlenebilir not için, taban "arşivde ve aynı içerik" değilse uzak değişiklik uygulanmaz ve taban korunur; geri yüklemede olağan karşılaştırma/çakışma kuralı işler. Taban arşivliyse (web'de arşivlenmiş ya da eski sürümün çöpü) arşivden çıkarma notu geri getirir; yerelden geri yükleme `state=NORMAL` gönderir.
+    - `Purge` salt okunur olmayan eşlemede `sync_state.delete_pending=1` yazar (eski DB'lerde sütun 0 ile eklenir: eski mezar taşları silinmez).
+    - Tur, sigortadan sonra seçili Space'in bekleyen silmelerini `DELETE {kök}/memos/{id}` ile gönderir. 200/404 → kapanır; çevrimdışı/401 → tur biter, bekler; 403 ya da yetki kaybı → istek bırakılır (memo kalır); diğer hatalar → bekler, tur sürer.
+    - Sigorta kalıcı silinmiş notları saymaz.
 - **Testler**: `tests/StickyNotes.Core.Tests/` — `MemoMarkdownTests.cs`, `MemosClientTests.cs`, `SyncEngineTests.cs` (sahte `IMemosApi` ile senaryolar), `MemosLiveTests.cs` (canlı sunucu, env ile).
 
 ## Docker'da doğrulama (G1)
@@ -62,13 +66,14 @@ Space rolü: düzenleme yetkisi Space rolüne bağlı. `ADMIN` (ve `HOST`) rolü
 
 Otomatik testte olanlar (`SyncEngineTests.cs`, `SyncScenarioTests.cs`):
 - İlk eşitleme iki yönde; uzak değişim; yerel değişim; çakışma (tek kopya, sonraki turda yok).
-- Yerel çöp → ARCHIVED; uzak ARCHIVED → yerel çöp; web'de geri alma (ARCHIVED → NORMAL, iki tur, sunucuda NORMAL kalır, yerelde çöpte değil).
-- Kalıcı silme sunucuya istek göndermez.
+- Yerel çöp → sunucuya istek yok; uzak ARCHIVED → yerel çöp; web'de geri alma (ARCHIVED → NORMAL, iki tur, sunucuda NORMAL kalır, yerelde çöpte değil).
+- Kalıcı silme → DELETE; çevrimdışı/500 sonrası yeniden deneme; salt okunur, yetki kaybı ve 403'te memo kalır; başka Space; eski mezar taşı; toplu çöp boşaltmada sigorta tetiklenmez; gönderilirken silinen not.
+- Geri yükleme: kopya yok; çöpteyken web değişikliği/arşivi; eski davranışla arşivde kalmış not.
 - Space 404 → duraklatma, DB bayt bayt aynı.
 - Sigorta (10 eşleme, boş liste); tek memo kayıp + GetMemo 404 → çöp; GetMemo 200 → dokunulmaz.
 - Space değişimi ve dönüş: eski alanın eşlemeleri yeni alana POST edilmez, eşlenmemiş notlar yeni alana gider, dönünce eski eşlemeler çalışır.
 - İki PC aynı UUID: tek memo, yineleme yok, kopya yok.
-- Uzun çevrimdışı: iki tarafta yeni / değişmiş / çöpe atılmış notlar. Tek turda tek çakışma kopyası; sonraki tur 0 değişiklik; iki taraf aynı küme.
+- Uzun çevrimdışı: iki tarafta yeni / değişmiş / çöpe atılmış notlar. Tek turda tek çakışma kopyası; sonraki tur 0 değişiklik; çöptekiler sunucuda NORMAL kalır.
 - DB yeniden kurulumu (boş DB, dolu sunucu): kopya yok, yinelenen memo yok.
 - Kesilen tur (kaldığı yerden devam), 409 ile eşleme, 401 → duraklatma, ağ hatası → Offline.
 - Salt okunur: başkasının notunu yerelde düzenleme → kopya, asıl not sunucu içeriği; salt okunur çöp yalnızca yerelde gizler, sunucuya gitmez; admin düzenleyebilir.
@@ -78,6 +83,10 @@ Açık kalan:
 - Arayüz (G3) kodlandı (TEK-168): `SyncService`, `TokenStore` (DPAPI), Ayarlar'da Memos bölümü, salt okunur not, tray. Windows'ta çalıştırılmadı; `tools/ui-test/tek166.ps1` bekliyor.
 - exe (G4): WinVMAgent işi.
 - Canlı Memos testi yalnızca `MEMOS_TEST_URL`, `MEMOS_TEST_TOKEN`, `MEMOS_TEST_SPACE` tanımlıysa çalışır; yoksa `Skipped` görünür (`Xunit.SkippableFact`).
+
+### Silme yolu doğrulaması (TEK-432, 0.31.0 ve 26.11.1)
+
+`DELETE {kök}/memos/{id}`: sahibi → 200, ardından `GET` 404; ikinci `DELETE` 404; üye olmayan/başka kullanıcı → 403; arşivli ve yorumlu memo → 200 (`force` gerekmedi). `MemosLiveTests` iki sürümde de geçti.
 
 ## Testleri çalıştırma
 
@@ -110,5 +119,8 @@ docker run -d --name memos2611 -p 5232:5230 -v memos2611-data:/var/opt/memos neo
 - Markdown'a gitmeyen biçim: altı çizili. Sunucudan gelen `**`/`~~` çiftleri kalın/üstü çizili sayılır; kullanıcının kendi metninde geçen bu çiftler de öyle yorumlanır (kaçış yok).
 - Çakışma kopyası, yazma ile kayıt arasında çökme olursa iki kez oluşabilir (kopya, veri kaybı değil).
 - Sigorta eşiği (5 ve %30) hem mutlak hem oransal aynı anda aşılırsa tetiklenir. Tek tek kayıp memolar sigortaya takılmaz.
+- Birden fazla PC: bir PC'de çöpe atma diğerine yansımaz (memo değişmez). Bir PC'de kalıcı silme diğerinde "web'de silinmiş" gibi görünür (not çöpe gider); tek seferde 5'ten ve %30'dan fazlaysa diğer PC'de sigorta tetiklenir ve "Yine de eşitle" bunu aşmaz.
+- Web'de silinmiş bir memonun çöpteki notu geri alınırsa sonraki turda yine çöpe gider (web silmesi yansır).
+- Yanıtı kaybolmuş (sunucuda oluşmuş, eşlenmemiş) bir not ilk turdan önce kalıcı silinirse memo silinmez ve sonraki tur kimlik çakışmasıyla hata verir (TEK-432 öncesinden kalma).
 - Kayıp memo 404 ile çöpe alındıktan sonra not zaten çöpteyse `GetMemo` tekrar çağrılmaz; eşleme satırı korunur.
 - Uygulama sunucuya tek turda bağlanır; iki eşzamanlı tur `SyncEngine` içinde sıraya girer, ama iki ayrı süreç arasında kilit yoktur (App katmanı tek örnek garanti etmeli).

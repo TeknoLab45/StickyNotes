@@ -21,6 +21,8 @@ public interface IMemosApi
     /// <summary>memoId sabit kimlik olarak gönderilir; aynı kimlik varsa <see cref="MemosAlreadyExistsException"/>.</summary>
     Task<MemoDto> CreateMemoAsync(string memoId, string spaceName, string visibility, string content, CancellationToken ct = default);
     Task<MemoDto> UpdateMemoAsync(string memoName, string content, string state, CancellationToken ct = default);
+    /// <summary>Memoyu sunucudan kalıcı siler. Sunucuda zaten yoksa (404) başarı sayılır.</summary>
+    Task DeleteMemoAsync(string memoName, CancellationToken ct = default);
 }
 
 public class MemosException : Exception
@@ -177,6 +179,14 @@ public sealed class MemosClient : IMemosApi
         var doc = await SendJsonAsync(HttpMethod.Patch, $"{root}/{memoName}?updateMask=content,state", body, ct)
                   ?? throw new MemosException("Memo güncelleme yanıtı boş.");
         return ParseMemo(doc.RootElement);
+    }
+
+    public async Task DeleteMemoAsync(string memoName, CancellationToken ct = default)
+    {
+        var root = await RootAsync(ct);
+        var (status, body) = await SendRawAsync(HttpMethod.Delete, root + "/" + memoName, null, ct);
+        if (status == HttpStatusCode.NotFound) return;
+        ThrowFor(status, body);
     }
 
     // ---- HTTP yardımcıları ----

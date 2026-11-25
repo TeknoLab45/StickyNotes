@@ -12,7 +12,7 @@
 - **Tema**: tüm pencereler `src/StickyNotes.App/Themes/Theme.xaml` içindeki ortak stilleri kullanır (tek tema; seçici yok). Kalıcı sil / Çöpü boşalt onayları temalı özel diyalogdur (Enter/Esc = Vazgeç).
 - **Checklist**: Enter = yeni madde (imleçten sonrasını taşır), boş maddede Backspace = maddeyi siler, ↑/↓ maddeler arası gezinir, kutucuk = işaretle (üstü çizilir).
 - **Explorer** (Alt+X): Notlar / Çöp sekmeleri, arama kutusu (düz metinde, büyük/küçük harf duyarsız; Ctrl+F), sekme rozetlerinde sayılar ("Notlar 6 · Çöp 3"), sıralama (son düzenlenen / oluşturma), renk filtresi noktaları. Satır = renk, ilk satır, soluk önizleme (checklist: "2/5 tamam"), göreli tarih ("bugün 18:05").
-  Çift tık notu açar. Çöpte: Geri al, Kalıcı sil, Çöpü boşalt (onay sorar).
+  Çift tık notu açar. Çöpte: Geri al, Kalıcı sil, Çöpü boşalt (onay sorar; Memos ile eşlenen not Memos'tan da silinir, aşağıya bakın).
 - **Kısayollar** — global (başka program öndeyken de çalışır; Ayarlar'dan değiştirilir/kapatılır): `Alt+H` tüm notları gizle (kalıcı, `is_open=0`), `Alt+S` tümünü göster (tek tek gizlenmişler dahil), `Alt+X` Explorer, `Alt+N` yeni not.
   Başka program aynı kısayolu tutuyorsa uygulama çökmez; `app.log`'a yazar ve tray'de tek seferlik uyarı gösterir. Not penceresi odaktayken ayrıca Ctrl+N yeni not, Ctrl+F Explorer araması.
 - **Kenara yapışma**: sürükleme ve boyutlandırmada görünür not kenarı çalışma alanı kenarına ≤ 12 px (DPI ile ölçeklenir) yaklaşınca oturur; not çalışma alanı dışına çıkamaz. Açılışta konum geri yüklenirken de uygulanır. (Windows'un kendi Aero Snap'i bu pencerelerde kapalıdır.)
@@ -34,7 +34,10 @@ Ayarlar → **Memos eşitleme** (bu PC'ye özel; `settings` tablosundaki `memos_
 - Seçilen Space'teki tüm memolar (yazarı kim olursa olsun) yerel nota gelir. Yerelde yazdığınız notlar Space'e gönderilir.
 - Başka kullanıcının notu **salt okunur** açılır: metin, checklist, biçim, yapıştırma ve tür değişikliği kapalıdır; renk, opaklık, konum, daralt ve çöpe atma (yalnızca bu PC'den gizler) açıktır. Şeritte kilit simgesi görünür.
 - İki tarafta da değişen not çakışırsa yerel sürüm korunur, sunucu sürümü "(çakışma kopyası)" adıyla yeni not olur.
-- Kendi notunuzu çöpe atarsanız sunucuda **arşivlenir** (silinmez); sunucuda arşivlenen not yerelde çöpe gider. Başkasının salt okunur notunu çöpe atmak yalnızca bu PC'de gizler.
+- **Çöpe atmak** yalnızca bu PC'yi etkiler: Memos'a hiçbir şey gönderilmez, memo listede kalır; not eşitlemeyle çöpten geri gelmez.
+- **Kalıcı sil / Çöpü boşalt** memoyu Memos'tan da **siler** (arşivlemez, geri alınamaz). Çevrimdışıysanız ya da istek başarısızsa silme bekler ve sonraki turlarda yeniden denenir. Başkasının salt okunur notu (ve sunucunun yetki vermediği memo) asla silinmez, yalnızca bu PC'de silinir. Başka Space'e bağlı ("bağlantısız") notun memosu, o Space yeniden seçilene kadar silinmez. Bu sürüme güncellemeden önce kalıcı silinmiş notların memoları silinmez.
+- **Geri al**: aynı memoyla eşleme sürer. Not çöpteyken memo web'de değiştiyse not çöpte kalır; geri alınca web içeriği gelir. Çöpe atmadan önce gönderilmemiş yerel yazı da varsa yerel sürüm korunur, web sürümü "(çakışma kopyası)" olur. Memo arşivdeyse (ör. eski sürümün çöpe attığı not) geri alınca NORMAL olur.
+- Memos'ta (web) arşivlenen ya da silinen not yerelde çöpe gider; arşivden çıkarılan geri gelir.
 - Çevrimdışıyken değişiklikler yerelde kalır; tray "Çevrimdışı · N değişiklik bekliyor" yazar, bağlantı gelince tek turda gönderilir.
 - **Space değiştirilirse** eski Space'teki notlar yerelde kalır ama artık eşitlenmez (onay sorulur).
 - **Uyarı:** bir Space Memos'ta silinirse içindeki memolar sunucuda kalıcı olarak silinir. Eşitleme bu durumu algılayıp duraklatır, yerel notları silmez.

@@ -1,5 +1,20 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-25 — TEK-432 — CoderAgent: Memos'tan silme yalnızca kalıcı silmede
+
+**Ne / neden:** Programda çöpe atılan not Memos'ta arşivleniyor, web listesinden kayboluyordu. Artık çöpe atma sunucuya hiçbir şey göndermez; memo yalnızca "Kalıcı sil" / "Çöpü boşalt" ile sunucudan silinir (`DELETE`), başarısızsa yeniden denenir. Kurallar: `docs/CLIENT.md`, ayrıntı: `docs/SENKRON.md`.
+
+**Dosyalar (`stickynotes/`):**
+- `src/StickyNotes.Core/Sync/SyncEngine.cs`, `Sync/MemosClient.cs` (`DeleteMemoAsync`), `NoteRepository.cs` (`sync_state.delete_pending`).
+- `src/StickyNotes.App/ExplorerWindow.xaml.cs` (onay metinleri), `SyncService.cs` (çevrimdışı bekleyen sayısı silmeleri de sayar).
+- `tests/StickyNotes.Core.Tests/`: `SyncEngineTests.cs`, `SyncScenarioTests.cs`, `SyncFakes.cs`, `MemosClientTests.cs`, `MemosLiveTests.cs`.
+
+**Doğrulama (Linux, .NET SDK 10):**
+- `dotnet build StickyNotes.slnx -p:EnableWindowsTargeting=true` → 0 uyarı, 0 hata.
+- `dotnet test tests/StickyNotes.Core.Tests -p:EnableWindowsTargeting=true` → 145 geçti, 1 atlandı (`MemosLiveTests`, env yoksa).
+- Geçici Docker Memos 0.31.0 ve 26.11.1: `MemosLiveTests` (çöp → NORMAL, kalıcı silme → DELETE) geçti.
+- **Yapılmadı:** WPF onay pencereleri Windows'ta görsel olarak denenmedi; exe derlenmedi.
+
 ## 2026-11-19 — TEK-170 — CoderAgent: Ayarlar küçük ekran düzeltmesi, main'e merge
 
 **Ne:** Ayarlar penceresi 800 px yüksekliğindeki ekranda artık çalışma alanını aşmıyor: `ScrollViewer` üzerindeki sabit `MaxHeight="720"` kaldırıldı, pencerenin `MaxHeight`'i `SystemParameters.WorkArea.Height` yapıldı, içerik kaydırılıyor (Memos bölümünün alt kısmı, Space seçimi ve durum satırı erişilebilir). Token kaydedilince "Kaydet" düğmesi "Kaydedildi ✓" olur; yeni bir token yazılınca "Kaydet"e döner.

@@ -18,7 +18,7 @@ public sealed record SyncResult(SyncStatus Status, string Message, int Pulled = 
 
 /// <summary>
 /// Tek eşitleme turu. Kurallar: çakışmada yerel kazanır, sunucu sürümü "(çakışma kopyası)" olarak yeni not olur;
-/// kalıcı silme sunucuya gitmez; sunucuda kaybolan memolar yalnızca 404 kesinleşirse çöpe taşınır;
+/// çöpe atma sunucuya gitmez; kalıcı silme memoyu sunucudan siler (başarısızsa sonraki turda yeniden); sunucuda kaybolan memolar yalnızca 404 kesinleşirse çöpe taşınır;
 /// bir turda eşlenmiş notların hem 5'ten fazlası hem %30'undan fazlası kaybolursa hiçbir şey yazılmaz (sigorta).
 /// Uzak yazmalar her başarılı istekten hemen sonra eşleme tablosuna işlenir: yarıda kesilen tur kaldığı yerden devam eder.
 /// </summary>
@@ -67,7 +67,7 @@ public sealed class SyncEngine
 
     private sealed class Counters
     {
-        public int Pulled, Pushed, Created, Trashed, Conflicts, Forbidden, Deferred;
+        public int Pulled, Pushed, Created, Trashed, Conflicts, Forbidden, Deferred, Deleted, DeleteFailed, DeleteForbidden;
     }
 
     private async Task<SyncResult> RunLockedAsync(SyncSettings s, CancellationToken ct)
@@ -94,18 +94,25 @@ public sealed class SyncEngine
         var creatorNames = new Dictionary<string, string>();
 
         // 2) Sigorta ve kayıp memolar. Yalnızca 404 kesinleşirse çöp; sunucuda başka yerde duruyorsa dokunulmaz.
-        var missing = inSpace.Where(r => !remoteNames.Contains(r.MemoName)).ToList();
-        if (missing.Count > MissingAbsoluteLimit && missing.Count > inSpace.Count * MissingRatioLimit)
+        // Kalıcı silinmiş notlar sayılmaz: memolarını biz sildik, "kayıp" değiller.
+        var alive = _repo.ListForSync().Select(n => n.Id).ToHashSet();
+        var tracked = inSpace.Where(r => alive.Contains(r.NoteId)).ToList();
+        var missing = tracked.Where(r => !remoteNames.Contains(r.MemoName)).ToList();
+        if (missing.Count > MissingAbsoluteLimit && missing.Count > tracked.Count * MissingRatioLimit)
             return new SyncResult(SyncStatus.Paused,
-                $"Sigorta: eşlenmiş {inSpace.Count} notun {missing.Count} tanesi sunucuda bulunamadı; hiçbir not çöpe atılmadı, eşitleme duraklatıldı.");
+                $"Sigorta: eşlenmiş {tracked.Count} notun {missing.Count} tanesi sunucuda bulunamadı; hiçbir not çöpe atılmadı, eşitleme duraklatıldı.");
         foreach (var r in missing)
         {
             var local = _repo.Get(r.NoteId);
-            if (local is null || local.IsDeleted) continue; // kalıcı silinmiş ya da zaten çöpte: tekrar sorulmaz
+            if (local is null || local.IsDeleted) continue; // zaten çöpte: tekrar sorulmaz
             if (await _api.GetMemoAsync(r.MemoName, ct) is not null) continue;
             _repo.SoftDelete(r.NoteId);
             c.Trashed++;
         }
+
+        // Kalıcı silinen notların memoları (yalnızca bu Space). Silinemeyen sırada kalır; yerele geri gelmez
+        // (eşleme satırı durur, yerel not yoktur).
+        await DeletePendingAsync(s, me, isSpaceAdmin, c, ct);
 
         // 3) Uzak memolar: yeni (eşlenmemiş) ya da eşlenmiş.
         foreach (var m in remote)
@@ -158,7 +165,8 @@ public sealed class SyncEngine
         var mappedNotes = _repo.ListSyncState().Select(r => r.NoteId).ToHashSet();
         foreach (var n in _repo.ListForSync())
         {
-            if (n.IsDeleted || mappedNotes.Contains(n.Id)) continue;
+            // Not yeniden okunur: tur sürerken silinmiş olabilir.
+            if (mappedNotes.Contains(n.Id) || _repo.Get(n.Id) is not { IsDeleted: false }) continue;
             try
             {
                 await CreateRemoteAsync(n, s, me, creatorNames, c, ct);
@@ -176,17 +184,46 @@ public sealed class SyncEngine
         if (c.Created > 0) parts.Add($"{c.Created} yeni not eklendi");
         if (c.Trashed > 0) parts.Add($"{c.Trashed} not çöpe taşındı");
         if (c.Conflicts > 0) parts.Add($"{c.Conflicts} çakışma kopyası");
+        if (c.Deleted > 0) parts.Add($"{c.Deleted} not Memos'tan silindi");
+        if (c.DeleteFailed > 0) parts.Add($"{c.DeleteFailed} not Memos'tan silinemedi (yeniden denenecek)");
+        if (c.DeleteForbidden > 0) parts.Add($"{c.DeleteForbidden} not Memos'tan silinmedi (yetki yok)");
         if (c.Forbidden > 0) parts.Add($"{c.Forbidden} not gönderilemedi (yetki yok, yerelde kaldı)");
         if (c.Deferred > 0) parts.Add($"{c.Deferred} düzenlenen not sonraki turda güncellenecek");
         var msg = parts.Count == 0 ? "Eşitleme tamam: değişiklik yok." : "Eşitleme tamam: " + string.Join(", ", parts) + ".";
         return new SyncResult(SyncStatus.Ok, msg, c.Pulled, c.Pushed, c.Created, c.Trashed, c.Conflicts);
     }
 
+    private async Task DeletePendingAsync(SyncSettings s, MemosUser me, bool isSpaceAdmin, Counters c, CancellationToken ct)
+    {
+        foreach (var r in _repo.ListPendingDeletes(s.Space))
+        {
+            try
+            {
+                // Yetki bu arada kalktıysa istek gönderilmez.
+                if (!(r.Creator == me.Name || isSpaceAdmin)) throw new MemosForbiddenException();
+                await _api.DeleteMemoAsync(r.MemoName, ct);
+                _repo.ClearPendingDelete(r.NoteId);
+                c.Deleted++;
+            }
+            catch (MemosForbiddenException)
+            {
+                // Salt okunur memo sunucudan silinmez: sıradan çıkar, yalnızca yerelde silinmiş kalır.
+                _repo.MarkSynced(r with { ReadOnly = true });
+                _repo.ClearPendingDelete(r.NoteId);
+                c.DeleteForbidden++;
+            }
+            catch (MemosException ex) when (ex is not (MemosOfflineException or MemosUnauthorizedException))
+            {
+                c.DeleteFailed++; // sunucu hatası: diğer notlar eşitlenmeye devam eder
+            }
+        }
+    }
+
     /// <summary>Eşlenmiş bir memo için iki tarafı karşılaştırır ve tek yönlü/çakışma kararını uygular.</summary>
     private async Task SyncMappedAsync(SyncRecord rec, MemoDto m, bool readOnly, SyncSettings s, Counters c, CancellationToken ct)
     {
         var local = _repo.Get(rec.NoteId);
-        if (local is null) return; // kalıcı silinmiş: sunucuya dokunulmaz
+        if (local is null) return; // kalıcı silinmiş: yerele geri gelmez (memo silme DeletePendingAsync'te)
 
         var archived = m.State == "ARCHIVED";
         var remoteFp = MemoMarkdown.Fingerprint(m.Content, archived);
@@ -216,6 +253,18 @@ public sealed class SyncEngine
             localChanged = localFp != rec.SyncedHash;
         }
 
+        // Çöpteki düzenlenebilir not sunucuya gönderilmez. Taban "arşivde ve aynı içerik" değilse (programda çöpe atılmış)
+        // uzak değişiklik de uygulanmaz ve taban korunur: geri yüklemede normal karşılaştırma/çakışma kuralı işler.
+        // İstisna: bu arada web'de arşivlendiyse ve gönderilmemiş yerel yazı yoksa arşiv tabana alınır
+        // (geri yükleme memoyu NORMAL yapsın, not yeniden çöpe düşmesin).
+        if (!readOnly && local.IsDeleted && localFp != rec.SyncedHash
+            && !(archived && rec.SyncedHash == MemoMarkdown.Fingerprint(localMd, false)))
+        {
+            _repo.MarkSynced(rec with { ReadOnly = false, RemoteUpdateTime = m.UpdateTime });
+            return;
+        }
+        if (!readOnly && local.IsDeleted) localChanged = false;
+
         if (!remoteChanged && !localChanged)
         {
             _repo.MarkSynced(rec with { ReadOnly = readOnly, RemoteUpdateTime = m.UpdateTime });
@@ -240,11 +289,10 @@ public sealed class SyncEngine
             return;
         }
 
-        // Düzenlenebilir ve yerel değişmiş: yerel gönderilir.
-        var state = local.IsDeleted ? "ARCHIVED" : "NORMAL";
+        // Düzenlenebilir ve yerel değişmiş: yerel gönderilir (çöpteki not buraya gelmez).
         try
         {
-            var updated = await _api.UpdateMemoAsync(rec.MemoName, localMd, state, ct);
+            var updated = await _api.UpdateMemoAsync(rec.MemoName, localMd, "NORMAL", ct);
             c.Pushed++;
             if (remoteChanged && remoteFp != localFp)
             {
@@ -305,6 +353,7 @@ public sealed class SyncEngine
 
         var creatorName = await CreatorNameAsync(created.Creator, creatorNames, ct);
         _repo.MarkSynced(new SyncRecord(n.Id, created.Name, s.Space, created.Creator, creatorName, false, created.UpdateTime, fp, _now()));
+        if (_repo.Get(n.Id) is null) _repo.QueueRemoteDelete(n.Id); // gönderilirken kalıcı silinmiş
         c.Pushed++;
         c.Created++;
     }

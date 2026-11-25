@@ -58,6 +58,9 @@ public sealed class NoteRepository
             remote_update_time TEXT NULL,
             synced_hash TEXT NULL,
             synced_at TEXT NULL);");
+        // Eski DB'ler: sütun 0 ile eklenir, böylece önceden kalıcı silinmiş notların memoları geriye dönük silinmez.
+        if (!Columns(c, "sync_state").Contains("delete_pending"))
+            Exec(c, "ALTER TABLE sync_state ADD COLUMN delete_pending INTEGER NOT NULL DEFAULT 0");
         Exec(c, "CREATE UNIQUE INDEX IF NOT EXISTS sync_state_memo ON sync_state(memo_name);");
         MigrateNotes(c);
         MigrateWindowState(c);
@@ -131,6 +134,47 @@ public sealed class NoteRepository
         cmd.Parameters.AddWithValue("$rut", r.RemoteUpdateTime is { } rut ? Ts(rut) : DBNull.Value);
         cmd.Parameters.AddWithValue("$h", (object?)r.SyncedHash ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$at", r.SyncedAt is { } at ? Ts(at) : DBNull.Value);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>Kalıcı silinmiş olup memosu henüz sunucudan silinmemiş eşlemeler (yalnızca verilen Space).</summary>
+    public List<SyncRecord> ListPendingDeletes(string space)
+    {
+        var ids = new HashSet<string>();
+        using (var c = Open())
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.CommandText = "SELECT note_id FROM sync_state WHERE delete_pending=1 AND space=$s";
+            cmd.Parameters.AddWithValue("$s", space);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) ids.Add(r.GetString(0));
+        }
+        return ListSyncState().Where(x => ids.Contains(x.NoteId)).ToList();
+    }
+
+    /// <summary>Memonun sunucudan silinmesini sıraya alır. Salt okunur eşlemeler sıraya girmez.</summary>
+    public void QueueRemoteDelete(string noteId)
+    {
+        using var c = Open();
+        QueueRemoteDelete(c, null, noteId);
+    }
+
+    private static void QueueRemoteDelete(SqliteConnection c, SqliteTransaction? tx, string noteId) =>
+        SetDeletePending(c, tx, noteId, "UPDATE sync_state SET delete_pending=1 WHERE note_id=$id AND read_only=0");
+
+    /// <summary>Bekleyen silmeyi kapatır (silindi ya da yetki yok). Eşleme satırı mezar taşı olarak kalır.</summary>
+    public void ClearPendingDelete(string noteId)
+    {
+        using var c = Open();
+        SetDeletePending(c, null, noteId, "UPDATE sync_state SET delete_pending=0 WHERE note_id=$id");
+    }
+
+    private static void SetDeletePending(SqliteConnection c, SqliteTransaction? tx, string noteId, string sql)
+    {
+        using var cmd = c.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = sql;
+        cmd.Parameters.AddWithValue("$id", noteId);
         cmd.ExecuteNonQuery();
     }
 
@@ -346,7 +390,8 @@ public sealed class NoteRepository
         return cmd.ExecuteNonQuery() > 0;
     }
 
-    /// <summary>Kalıcı siler: yalnızca çöptekiler. Satır sync için mezar taşı olarak kalır; içerik boşaltılır.</summary>
+    /// <summary>Kalıcı siler: yalnızca çöptekiler. Satır sync için mezar taşı olarak kalır; içerik boşaltılır.
+    /// Kullanıcı eylemidir: eşlenmiş (salt okunur olmayan) notun memosu sunucudan silinmek üzere sıraya alınır.</summary>
     public bool Purge(string id)
     {
         using var c = Open();
@@ -364,6 +409,7 @@ public sealed class NoteRepository
             d.CommandText = "DELETE FROM window_state WHERE note_id=$id";
             d.Parameters.AddWithValue("$id", id);
             d.ExecuteNonQuery();
+            QueueRemoteDelete(c, tx, id);
         }
         tx.Commit();
         return ok;
