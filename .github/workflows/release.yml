@@ -10,9 +10,6 @@ permissions:
 jobs:
   windows-exe:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: stickynotes
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4

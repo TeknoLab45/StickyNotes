@@ -92,7 +92,6 @@ Açık kalan:
 
 ```bash
 export PATH=$HOME/.dotnet:$PATH          # .NET 10 SDK
-cd stickynotes
 dotnet test tests/StickyNotes.Core.Tests/StickyNotes.Core.Tests.csproj
 ```
 

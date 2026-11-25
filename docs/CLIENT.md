@@ -63,7 +63,7 @@ Gereksinim: .NET SDK 10 (net10.0-windows). İkonu yeniden üretmek için `tools/
 
 ## Sürüm çıkarma (GitHub Actions)
 `v*` tag'i push edilince `.github/workflows/release.yml` çalışır: testleri koşar, win-x64 self-contained tek dosya `StickyNotes.exe` üretir ve tag'in GitHub Release'ine asset olarak ekler (Release yoksa oluşturur).
-1. `stickynotes/src/StickyNotes.App/StickyNotes.App.csproj` içindeki `<Version>` değerini güncelle, `main`'e al.
+1. `src/StickyNotes.App/StickyNotes.App.csproj` içindeki `<Version>` değerini güncelle, `main`'e al.
 2. `git tag v<sürüm> && git push origin v<sürüm>` (örn. `v0.2.0`).
 3. Actions'ta `release` çalışmasını ve Release sayfasındaki `StickyNotes.exe` asset'ini kontrol et. Başarısızsa: `gh run list --workflow release` / `gh run view <id> --log-failed`.
 Repo private olduğundan asset'i yalnızca repoya erişimi olanlar indirebilir.
