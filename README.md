@@ -1,29 +1,27 @@
-# lab-denemeler
+# StickyNotes
 
-> Durum: deneme reposu
+Windows için tray'de çalışan yapışkan not uygulaması: WPF, .NET 10, SQLite; isteğe bağlı Memos eşitlemesi. Repo: `TeknoLab45/StickyNotes` (private).
 
-Bu repo TeknoLAB'ın denemelik ve prototip işlerinin tek yeridir. Her deneme kendi klasöründe durur; kalıcılaşan projeler ayrı repoya taşınır.
+> Not: Repo eskiden `batv45/lab-denemeler` (TeknoLAB deneme/prototip monoreposu) idi; StickyNotes terfi edip kendi reposuna geçti. Eski deneme reposu kuralları artık geçerli değil.
 
-## Klasör kuralı
+## Yapı
 
-- Her deneme `deneme-adi/` adıyla kendi klasöründe durur.
-- Her deneme klasöründe kısa bir `README.md` bulunur: amaç, nasıl çalıştırılır, durum, tarih ve hangi Multica issue'sundan geldiği.
+- [stickynotes/](stickynotes/) — uygulama (kaynak, testler, araçlar). Kök dizine alınmadı; tüm `dotnet` komutları bu klasörde çalışır.
+  - `src/StickyNotes.Core` (not modeli, SQLite, eşitleme), `src/StickyNotes.App` (WPF arayüz), `tests/`, `tools/`, `docs/`
+  - `StickyNotes.exe` — win-x64 self-contained tek dosya; güncel olmayabilir (bkz. [stickynotes/README.md](stickynotes/README.md)).
+- [docs/](docs/) — repo düzeyi değişiklik günlüğü. Uygulama dokümanları: [stickynotes/docs/README.md](stickynotes/docs/README.md).
+
+## Hızlı başlangıç
+
+```
+cd stickynotes
+dotnet build          # Linux'ta: dotnet build StickyNotes.slnx -p:EnableWindowsTargeting=true
+dotnet test           # Linux'ta: dotnet test tests/StickyNotes.Core.Tests -p:EnableWindowsTargeting=true
+```
+
+Publish komutları, kullanım, kısayollar ve Memos eşitleme ayarı: [stickynotes/docs/CLIENT.md](stickynotes/docs/CLIENT.md).
 
 ## Dal kuralı
 
 - Ajanlar `agent/...` dallarında çalışır.
-- `main` dalına yalnızca kullanıcının açık talimatıyla merge edilir.
-
-## Terfi kuralı
-
-Bir deneme ciddileşirse geçmişiyle birlikte ayrı repoya taşınır (`git subtree split` veya `git filter-repo`). Bu repoda ilgili klasör silinir ve bu README'ye taşındığı yeri gösteren bir not düşülür.
-
-## Arşiv ve silme kuralı
-
-Terk edilen veya taşınan denemeler, deneme listesinde durumu güncellenerek tutulur. Silme yalnızca açık bir talimatla yapılır.
-
-## Deneme listesi
-
-| Klasör | Amaç | Durum | Tarih | Issue |
-|--------|------|-------|-------|-------|
-| [stickynotes/](stickynotes/) | Windows tray yapışkan not uygulaması (WPF/.NET 10) | deneme, exe dahil | 2026-11-19 | TEK-162 |
+- `main` dalına yalnızca kullanıcının açık izniyle `--no-ff` merge edilir.
