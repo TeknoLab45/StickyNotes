@@ -150,16 +150,12 @@ public class SyncScenarioTests
         var r2 = await pc.Engine.RunOnceAsync(Settings());
         Assert.Equal(0, r2.Pulled + r2.Pushed + r2.Created + r2.Trashed + r2.Conflicts);
 
-        // İki taraf aynı küme: etkin notlar ↔ NORMAL memolar, çöp ↔ ARCHIVED.
+        // Etkin notlar NORMAL memolarla aynı; çöpe atılan "üç" sunucuda NORMAL kalır, hiçbir şey arşivlenmez.
         var localActive = pc.Repo.ListActive().Select(x => MemoMarkdown.FromNote(x.Type, x.Content)).OrderBy(x => x, StringComparer.Ordinal).ToList();
         var remoteNormal = api.Memos.Values.Where(m => m.State == "NORMAL").Select(m => m.Content).OrderBy(x => x, StringComparer.Ordinal).ToList();
-        Assert.Equal(remoteNormal, localActive);
         Assert.Equal(new[] { "(çakışma kopyası)\ndört-uzak", "beş-yerel", "bir-yerel", "dört-yerel", "iki-uzak", "uzak yeni" }, localActive);
-
-        var localTrash = pc.Repo.ListTrash().Select(x => MemoMarkdown.FromNote(x.Type, x.Content)).ToList();
-        var remoteArchived = api.Memos.Values.Where(m => m.State == "ARCHIVED").Select(m => m.Content).ToList();
-        Assert.Equal(remoteArchived, localTrash);
-        Assert.Equal(new[] { "üç" }, localTrash);
+        Assert.Equal(localActive.Append("üç").OrderBy(x => x, StringComparer.Ordinal), remoteNormal);
+        Assert.Equal(new[] { "üç" }, pc.Repo.ListTrash().Select(x => MemoMarkdown.FromNote(x.Type, x.Content)));
         _ = (n2, n5);
     }
 

@@ -42,11 +42,19 @@ public class MemosLiveTests
             Assert.Equal(SyncStatus.Ok, r2.Status);
             Assert.Equal("sunucudan gelen", NoteContent.ParseText(repo.Get(local.Id)!.Content));
 
-            // Çöp → ARCHIVED
+            // Çöp → sunucu değişmez
             repo.SoftDelete(local.Id);
             var r3 = await engine.RunOnceAsync(settings);
             Assert.Equal(SyncStatus.Ok, r3.Status);
-            Assert.Equal("ARCHIVED", (await client.GetMemoAsync(memoName))!.State);
+            Assert.Equal("NORMAL", (await client.GetMemoAsync(memoName))!.State);
+
+            // Kalıcı silme → DELETE; ikinci DELETE (404) başarı sayılır
+            repo.Purge(local.Id);
+            var r4 = await engine.RunOnceAsync(settings);
+            Assert.Equal(SyncStatus.Ok, r4.Status);
+            Assert.Null(await client.GetMemoAsync(memoName));
+            Assert.Empty(repo.ListPendingDeletes(space));
+            await client.DeleteMemoAsync(memoName);
         }
         finally
         {

@@ -53,6 +53,26 @@ public class MemosClientTests
         Assert.Equal("/api/v1/auth/me", handler.Seen[0].RequestUri!.AbsolutePath);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.OK)]
+    [InlineData(HttpStatusCode.NotFound)]
+    public async Task DeleteMemo_SendsDelete_AndTreats404AsSuccess(HttpStatusCode status)
+    {
+        var (client, handler) = Make(_ => StubHandler.Json(status, "{}"), "/api");
+
+        await client.DeleteMemoAsync("memos/abc");
+
+        Assert.Equal(HttpMethod.Delete, handler.Seen.Single().Method);
+        Assert.Equal("/api/memos/abc", handler.Seen[0].RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task DeleteMemo_ServerError_Throws()
+    {
+        var (client, _) = Make(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError), "/api");
+        await Assert.ThrowsAsync<MemosException>(() => client.DeleteMemoAsync("memos/abc"));
+    }
+
     [Fact]
     public async Task Requests_CarryBearerToken()
     {

@@ -26,6 +26,10 @@ public sealed class FakeMemos : IMemosApi
     public bool ForbidCreate;
     /// <summary>Var olan Space'ler. Varsayılan: spaces/s1 (Space) ve spaces/s2.</summary>
     public HashSet<string> Spaces = new() { Space, "spaces/s2" };
+    /// <summary>Doluysa DeleteMemo her çağrıda bunu fırlatır.</summary>
+    public Exception? FailDelete;
+    /// <summary>CreateMemo içinde çağrılır (tur sürerken kullanıcı eylemi senaryosu).</summary>
+    public Action? OnCreate;
     private int _createCount;
 
     private void Enter(string op)
@@ -87,6 +91,7 @@ public sealed class FakeMemos : IMemosApi
         if (Memos.ContainsKey(name)) throw new MemosAlreadyExistsException();
         var dto = new MemoDto(name, Me, content, "NORMAL", visibility, spaceName, Now());
         Memos[name] = dto;
+        OnCreate?.Invoke();
         return Task.FromResult(dto);
     }
 
@@ -97,6 +102,14 @@ public sealed class FakeMemos : IMemosApi
         var m = Memos[memoName] with { Content = content, State = state, UpdateTime = Now() };
         Memos[memoName] = m;
         return Task.FromResult(m);
+    }
+
+    public Task DeleteMemoAsync(string memoName, CancellationToken ct = default)
+    {
+        Enter("delete");
+        if (FailDelete is { } e) throw e;
+        Memos.Remove(memoName); // yoksa da başarı (404)
+        return Task.CompletedTask;
     }
 
     /// <summary>Sunucu tarafında (başka bir kullanıcı/web) değişiklik.</summary>

@@ -161,11 +161,14 @@ public partial class ExplorerWindow : Window
         foreach (var r in Selected()) _manager.RestoreNote(r.Id);
     }
 
+    private const string MemosDeleteNote =
+        "Memos ile eşlenen notlar Memos'tan da silinir (salt okunur notlar hariç; başka alana bağlı olanlar o alan yeniden seçilince).";
+
     private void Purge_Click(object sender, RoutedEventArgs e)
     {
         var sel = Selected().ToList();
         if (sel.Count == 0) return;
-        if (!ConfirmDialog.Ask(this, "Kalıcı sil", $"{sel.Count} not kalıcı olarak silinsin mi? Bu geri alınamaz.", "Kalıcı sil")) return;
+        if (!ConfirmDialog.Ask(this, "Kalıcı sil", $"{sel.Count} not kalıcı olarak silinsin mi? {MemosDeleteNote} Bu geri alınamaz.", "Kalıcı sil")) return;
         foreach (var r in sel) _manager.PurgeNote(r.Id);
     }
 
@@ -173,7 +176,7 @@ public partial class ExplorerWindow : Window
     {
         var count = _manager.Repo.ListTrash().Count;
         if (count == 0) return;
-        if (!ConfirmDialog.Ask(this, "Çöpü boşalt", $"Çöpteki {count} not kalıcı olarak silinsin mi? Bu geri alınamaz.", "Çöpü boşalt")) return;
+        if (!ConfirmDialog.Ask(this, "Çöpü boşalt", $"Çöpteki {count} not kalıcı olarak silinsin mi? {MemosDeleteNote} Bu geri alınamaz.", "Çöpü boşalt")) return;
         _manager.EmptyTrash();
     }
 }
