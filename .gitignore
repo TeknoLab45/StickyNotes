@@ -1,10 +1,7 @@
-# Bağımlılıklar ve derleme çıktıları
-node_modules/
+# Derleme çıktıları
 dist/
 bin/
 obj/
-__pycache__/
-.venv/
 
 # Ortam ve gizli dosyalar
 .env
@@ -14,6 +11,3 @@ __pycache__/
 *.log
 .DS_Store
 Thumbs.db
-
-# StickyNotes derleme çıktıları
-!stickynotes/StickyNotes.exe

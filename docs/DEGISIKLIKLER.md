@@ -1,5 +1,22 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-25 — TEK-444 — Coder: uygulama repo köküne alındı
+
+- `stickynotes/` içeriği (`src/`, `tests/`, `tools/`, `StickyNotes.slnx`, `StickyNotes.exe`) repo köküne taşındı; uygulama dokümanları `docs/` altında birleşti (`CLIENT.md`, `BICIMLENDIRME.md`, `SENKRON.md`). `stickynotes/README.md` kök `README.md`'ye katıldı.
+- İki değişiklik günlüğü tek dosyada (`docs/DEGISIKLIKLER.md`, adda Türkçe karakter yok) birleştirildi; eski deneme reposuna ait kayıtlar (TEK-161, TEK-163 kök kayıtları) ve eski `.gitignore` satırları (node_modules, __pycache__, .venv) silindi.
+- Release iş akışı artık kökte çalışır (`working-directory` kaldırıldı). Kod değişmedi; exe yeniden derlenmedi.
+- Aşağıdaki eski kayıtlarda geçen `stickynotes/...` yolları taşıma öncesi konumdur.
+
+## 2026-11-25 — TEK-439 — Coder: tag ile GitHub Actions release
+
+- `.github/workflows/release.yml` eklendi: `v*` tag'inde test + win-x64 tek dosya exe publish + Release asset'i. Kullanım: `stickynotes/docs/CLIENT.md` "Sürüm çıkarma". Mevcut `stickynotes/StickyNotes.exe` değişmedi.
+
+## 2026-11-25 — TEK-438 — Coder: belge güncellemesi
+
+- Kök `README.md` StickyNotes reposu olarak yeniden yazıldı (eski `lab-denemeler` deneme kuralları kaldırıldı; geçmiş notu kaldı).
+- `CLAUDE.md` eklendi (yalnızca repo bilgisi). `docs/README.md` indeksi eklendi.
+- `stickynotes/README.md` durumu güncellendi (145 test geçti/1 atlandı, exe eski sürüm, repo adı). Kod, klasör yapısı, exe değişmedi.
+
 ## 2026-11-25 — TEK-432 — CoderAgent: Memos'tan silme yalnızca kalıcı silmede
 
 **Ne / neden:** Programda çöpe atılan not Memos'ta arşivleniyor, web listesinden kayboluyordu. Artık çöpe atma sunucuya hiçbir şey göndermez; memo yalnızca "Kalıcı sil" / "Çöpü boşalt" ile sunucudan silinir (`DELETE`), başarısızsa yeniden denenir. Kurallar: `docs/CLIENT.md`, ayrıntı: `docs/SENKRON.md`.
