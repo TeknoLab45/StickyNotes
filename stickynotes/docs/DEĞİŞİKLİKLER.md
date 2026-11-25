@@ -14,6 +14,7 @@
 - `dotnet test tests/StickyNotes.Core.Tests -p:EnableWindowsTargeting=true` → 145 geçti, 1 atlandı (`MemosLiveTests`, env yoksa).
 - Geçici Docker Memos 0.31.0 ve 26.11.1: `MemosLiveTests` (çöp → NORMAL, kalıcı silme → DELETE) geçti.
 - **Yapılmadı:** WPF onay pencereleri Windows'ta görsel olarak denenmedi; exe derlenmedi.
+- **main'e merge (TEK-435, CoderAgent, 2026-11-25):** dal `agent/coderagent/e838a2b686df` kullanıcı izniyle `main`'e `--no-ff` merge edildi; merge sonrası build 0 hata, test 145 geçti / 1 atlandı. Exe derlenmedi.
 
 ## 2026-11-19 — TEK-170 — CoderAgent: Ayarlar küçük ekran düzeltmesi, main'e merge
 
