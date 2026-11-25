@@ -1,5 +1,9 @@
 # Değişiklikler
 
+## 2026-11-25 — TEK-439 — Coder: tag ile GitHub Actions release
+
+- `.github/workflows/release.yml` eklendi: `v*` tag'inde test + win-x64 tek dosya exe publish + Release asset'i. Kullanım: `stickynotes/docs/CLIENT.md` "Sürüm çıkarma". Mevcut `stickynotes/StickyNotes.exe` değişmedi.
+
 ## 2026-11-25 — TEK-438 — Coder: belge güncellemesi
 
 - Kök `README.md` StickyNotes reposu olarak yeniden yazıldı (eski `lab-denemeler` deneme kuralları kaldırıldı; geçmiş notu kaldı).
