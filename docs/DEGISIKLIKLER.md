@@ -1,5 +1,14 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-26 — TEK-462 (ana: TEK-460) — Coder: Inno Setup kurulumu, sürüm 0.3.0, setup exe yükleyen release CI
+
+- `App.xaml.cs`: `OnStartup` iki sabit mutex açar (`StickyNotesSetupMutex`, `Global\StickyNotesSetupMutex`); `Global` açılamazsa hata loglanır ve yutulur. Çıkışta bırakılır.
+- `installer/StickyNotes.iss` (Inno Setup 6): kullanıcı başına, x64, Türkçe + İngilizce, `AppMutex`, `CloseApplications=no`, isteğe bağlı masaüstü ve açılışta başlat görevleri, kaldırmada veri korunur. `installer/Output/` gitignore'a eklendi.
+- Sürüm `0.3.0` (csproj), kökte `CHANGELOG.md` (0.3.0, 0.2.0).
+- `release.yml`: tag/csproj sürüm kontrolü → test → publish → Inno Setup (yoksa choco) → `iscc` → CHANGELOG'dan not → Release'e yalnızca `StickyNotes-Setup-<sürüm>.exe`. Taşınabilir exe asset'i kaldırıldı.
+- Belgeler: `docs/CLIENT.md` (Kurulum, Sürüm çıkarma), `README.md`, `docs/README.md`. Plan: `docs/PLAN_KURULUM_INNO.md`.
+- Bilinen kısıt: kurulum Linux'ta derlenemedi ve Windows'ta elle denenmedi; ilk doğrulama CI'dır.
+
 ## 2026-11-26 — TEK-460 — Lead: kaynak kod incelemesi ve kurulum planı
 
 - Kaynak kod incelendi: KRİTİK bulgu yok. Build 0 hata, test 145 geçti / 1 atlandı. Kurulum için tek önemli bulgu var: mutex adı kullanıcıya göre değişiyor.

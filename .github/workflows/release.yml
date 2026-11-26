@@ -8,21 +8,65 @@ permissions:
   contents: write
 
 jobs:
-  windows-exe:
+  windows-setup:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Sürüm kontrolü (tag = csproj Version)
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CSPROJ_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/StickyNotes.App/StickyNotes.App.csproj | head -n1)
+          echo "tag=$TAG_VERSION csproj=$CSPROJ_VERSION"
+          if [ -z "$CSPROJ_VERSION" ] || [ "$TAG_VERSION" != "$CSPROJ_VERSION" ]; then
+            echo "::error::Tag ($TAG_VERSION) csproj Version ($CSPROJ_VERSION) ile uyuşmuyor"
+            exit 1
+          fi
+          echo "VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
       - name: Test
         run: dotnet test tests/StickyNotes.Core.Tests -c Release
       - name: Publish (win-x64, tek dosya)
         run: dotnet publish src/StickyNotes.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishTrimmed=false -o dist/win-x64
-      - name: Release'e exe ekle
-        shell: bash
+      - name: Inno Setup kur (yoksa)
+        shell: pwsh
+        run: |
+          $iscc = Get-Command iscc -ErrorAction SilentlyContinue
+          if (-not $iscc -and -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+      - name: Setup exe derle
+        shell: pwsh
+        run: |
+          $cmd = Get-Command iscc -ErrorAction SilentlyContinue
+          $iscc = if ($cmd) { $cmd.Source } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          $publish = (Resolve-Path dist/win-x64).Path
+          & $iscc "/DAppVersion=$env:VERSION" "/DPublishDir=$publish" installer\StickyNotes.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Release notu (CHANGELOG)
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { on=1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md içinde [$VERSION] bölümü yok ya da boş"
+            exit 1
+          fi
+          cat notes.md
+      - name: Release'e setup exe ekle
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
-          gh release upload "$GITHUB_REF_NAME" dist/win-x64/StickyNotes.exe --clobber
+          TITLE="StickyNotes $VERSION"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --title "$TITLE" --notes-file notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$TITLE" --notes-file notes.md
+          fi
+          gh release upload "$GITHUB_REF_NAME" "installer/Output/StickyNotes-Setup-$VERSION.exe" --clobber

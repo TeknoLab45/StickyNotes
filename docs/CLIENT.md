@@ -61,12 +61,22 @@ dotnet publish src/StickyNotes.App -c Release -r win-x64 --no-self-contained -p:
 Linux'ta yalnızca derleme kontrolü (WPF çalışmaz): `dotnet build src/StickyNotes.App -p:EnableWindowsTargeting=true`.
 Gereksinim: .NET SDK 10 (net10.0-windows). İkonu yeniden üretmek için `tools/make-icon.ps1`.
 
+## Kurulum
+- GitHub Release sayfasından `StickyNotes-Setup-<sürüm>.exe` dosyasını indirip çalıştırın (yalnızca Windows x64; repo private olduğundan indirmek için repoya erişim gerekir).
+- Varsayılan kurulum kullanıcı başınadır (yönetici izni istemez): `%LOCALAPPDATA%\Programs\StickyNotes`. İsterseniz kurulum penceresinde tüm kullanıcılar için kurmayı seçebilirsiniz.
+- Kurulumda isteğe bağlı: masaüstü kısayolu ve "Windows açılışında başlat" (varsayılan işaretsiz; Başlangıç klasörüne kısayol koyar, kaldırmak için kısayolu silin ya da uygulamayı kaldırın).
+- Uygulama açıkken kurulum, kapatmanızı ister (tray'den Çıkış). Yeni sürüm aynı klasöre kurulur ve eskisinin üzerine yazar.
+- Kaldırma `%LOCALAPPDATA%\StickyNotes` içindeki notları, ayarları ve logu silmez.
+- Exe imzasızdır; Windows SmartScreen "tanınmayan uygulama" uyarısı verebilir.
+- Kurulum Windows'ta henüz elle denenmedi (TEK-460); ilk doğrulama CI derlemesidir.
+
 ## Sürüm çıkarma (GitHub Actions)
-`v*` tag'i push edilince `.github/workflows/release.yml` çalışır: testleri koşar, win-x64 self-contained tek dosya `StickyNotes.exe` üretir ve tag'in GitHub Release'ine asset olarak ekler (Release yoksa oluşturur).
-1. `src/StickyNotes.App/StickyNotes.App.csproj` içindeki `<Version>` değerini güncelle, `main`'e al.
-2. `git tag v<sürüm> && git push origin v<sürüm>` (örn. `v0.2.0`).
-3. Actions'ta `release` çalışmasını ve Release sayfasındaki `StickyNotes.exe` asset'ini kontrol et. Başarısızsa: `gh run list --workflow release` / `gh run view <id> --log-failed`.
-Repo private olduğundan asset'i yalnızca repoya erişimi olanlar indirebilir.
+`v*` tag'i push edilince `.github/workflows/release.yml` çalışır: tag ile csproj `<Version>` değerini karşılaştırır, testleri koşar, win-x64 self-contained tek dosya `StickyNotes.exe` üretir, Inno Setup ile `installer/StickyNotes.iss`'i derler ve tag'in GitHub Release'ine **yalnızca** `StickyNotes-Setup-<sürüm>.exe` asset'ini yükler (Release yoksa oluşturur). Release notu `CHANGELOG.md`'deki o sürümün bölümünden alınır; bölüm yoksa job hata verir.
+1. `src/StickyNotes.App/StickyNotes.App.csproj` içindeki `<Version>` değerini güncelle.
+2. `CHANGELOG.md`'ye `## [<sürüm>] - <tarih>` bölümü ekle (kısa, kullanıcı diliyle). Teknik kayıt `docs/DEGISIKLIKLER.md`'ye.
+3. `main`'e al, sonra `git tag v<sürüm> && git push origin main v<sürüm>` (örn. `v0.3.0`).
+4. Actions'ta `release` çalışmasını ve Release sayfasındaki asset'i kontrol et. Başarısızsa: `gh run list --workflow release` / `gh run view <id> --log-failed`. Yayınlanmış tag silinmez ya da yeniden atılmaz; düzeltip bir sonraki sürümü (örn. `v0.3.1`) çıkar.
+Yerel derleme (Windows, Inno Setup 6): `iscc /DAppVersion=0.3.0 /DPublishDir=<dist\win-x64 tam yol> installer\StickyNotes.iss` → `installer\Output\`.
 
 ## Test verisi ve elle UI testi
 `dotnet run --project tools/seed -- <data-dir> [adet] [opaque]` gerçekçi test notları yazar (`--dump <data-dir>` kayıtlı opaklıkları listeler). `StickyNotes.exe --show-tray-menu` tray menüsünü ekranda açar. Memos: `tools/ui-test/tek166.ps1` (Docker Memos ve `MEMOS_TEST_URL`/`MEMOS_TEST_TOKEN`/`MEMOS_TEST_SPACE` gerekir; Ayarlar'ı tray'den açın). Senaryolar: `tools/ui-test/tek150a/b/d/e.ps1`, `tek151a/b/c/d.ps1`, biçim için `tek152.ps1` (+`lib150.ps1`, `backdrop.ps1`, `holdkey.ps1` = başka programın kısayolu tutmasını taklit eder). RichTextBox'a yazmak için `Set-Editor` (ui.ps1) kullanılır. `--dump` tür, pencere durumu ve ayarları da yazar.

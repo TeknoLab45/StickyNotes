@@ -12,6 +12,7 @@ namespace StickyNotes.App;
 public partial class App : Application
 {
     private Mutex? _mutex;
+    private readonly System.Collections.Generic.List<Mutex> _setupMutexes = new();
     private NoteManager? _manager;
     private System.Windows.Forms.NotifyIcon? _tray;
     private System.Drawing.Icon? _trayIcon;
@@ -60,6 +61,8 @@ public partial class App : Application
             return;
         }
 
+        OpenSetupMutexes();
+
         SessionEnding += (_, _) => ExitApp(); // logoff/shutdown: bekleyen kayıtları yaz
         DispatcherUnhandledException += (_, ex) =>
         {
@@ -97,6 +100,17 @@ public partial class App : Application
             AppLog.Error("Başlatma hatası", ex);
             MessageBox.Show("Sticky Notes başlatılamadı:\n" + ex.Message, "Sticky Notes", MessageBoxButton.OK, MessageBoxImage.Error);
             ExitApp();
+        }
+    }
+
+    /// <summary>Inno Setup AppMutex için sabit adlı mutex'ler (kurulum uygulamanın açık olduğunu görsün).
+    /// Global\ olanı yetki yüzünden açılamazsa hata yutulur, uygulama açılmaya devam eder.</summary>
+    private void OpenSetupMutexes()
+    {
+        foreach (var name in new[] { "StickyNotesSetupMutex", "Global\\StickyNotesSetupMutex" })
+        {
+            try { _setupMutexes.Add(new Mutex(false, name)); }
+            catch (Exception ex) { AppLog.Error("Kurulum mutex'i açılamadı: " + name, ex); }
         }
     }
 
@@ -200,6 +214,8 @@ public partial class App : Application
         _trayIcon?.Dispose();
         try { _mutex?.ReleaseMutex(); } catch { }
         _mutex?.Dispose();
+        foreach (var m in _setupMutexes) m.Dispose();
+        _setupMutexes.Clear();
         AppLog.Info("Çıkış");
         Shutdown();
     }
