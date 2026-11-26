@@ -1,5 +1,10 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-26 — TEK-460 — Lead: kaynak kod incelemesi ve kurulum planı
+
+- Kaynak kod incelendi: KRİTİK bulgu yok. Build 0 hata, test 145 geçti / 1 atlandı. Kurulum için tek önemli bulgu var: mutex adı kullanıcıya göre değişiyor.
+- `docs/PLAN_KURULUM_INNO.md` eklendi: Inno Setup ile kullanıcı başına kurulum, sürüm 0.3.0, `CHANGELOG.md`, setup exe'yi Release'e tek asset olarak yükleyen CI, merge ve `v0.3.0` tag'i. Kod değişmedi.
+
 ## 2026-11-25 — TEK-444 — Coder: uygulama repo köküne alındı
 
 - `stickynotes/` içeriği (`src/`, `tests/`, `tools/`, `StickyNotes.slnx`, `StickyNotes.exe`) repo köküne taşındı; uygulama dokümanları `docs/` altında birleşti (`CLIENT.md`, `BICIMLENDIRME.md`, `SENKRON.md`). `stickynotes/README.md` kök `README.md`'ye katıldı.
