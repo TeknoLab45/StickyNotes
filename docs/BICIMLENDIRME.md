@@ -2,6 +2,8 @@
 
 Durum: **Core katmanı (TEK-154) ve WPF katmanı (TEK-155, Görev B) kodlandı.** WPF tarafı Linux'ta derlenmez/çalışmaz; derleme yalnızca `-p:EnableWindowsTargeting=true` ile doğrulandı. Windows'ta `tools/ui-test/tek152.ps1` ve plan §7 elle testleri henüz çalıştırılmadı. Kaynak planı: TEK-153 (`BICIMLENDIRME-PLANI.md`, ArchitectAgent).
 
+> TEK-467 (0.4.0): checklist türü kaldırıldı, `content` içine isteğe bağlı `title` eklendi, seçim yokken Ctrl+B yazma modunu değiştiriyor. Aşağıdaki checklist anlatımları eski sürüme aittir. Güncel davranış: `NOT_DUZENLEYICI.md`.
+
 ## 1. Kayıt biçimi
 
 Metin notunun `notes.content` alanı:
@@ -80,5 +82,4 @@ Farklı türler aynı karakterde çakışabilir (kalın + altı çizili + üstü
 
 - Windows'ta doğrulanmadı: `RichTextMapper` ofset eşlemesi (paragraf sınırı, emoji), Ctrl+Z (R2), yapıştırma olayının `DataObject` ataması, RichTextBox'ın `IsDocumentEnabled="False"` ile davranışı, menü ayracının görünümü. Plan §7 elle testleri ve `tools/ui-test/tek152.ps1` çalıştırılmalı.
 - Eski `TextBox` tabanlı UI testleri (`tek149`, `tek149b`, `tek151a`, `tek151d`) artık `Set-Editor` (ui.ps1) ile yazar; `ValuePattern` RichTextBox'ta yoktur.
-- Seçim yokken biçim (yazmaya devam et) desteklenmez; sonraki tur.
-- Checklist maddelerinde biçim: ilk tur dışı.
+- Seçim yokken yazma modu yalnızca kalında var (TEK-467); altı/üstü çizili seçim ister.

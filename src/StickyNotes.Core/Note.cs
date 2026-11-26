@@ -23,12 +23,13 @@ public sealed record Note(
     DateTime EditedAt,
     DateTime? DeletedAt,
     DateTime? PurgedAt,
-    double Opacity = 1.0)
+    double Opacity = 1.0,
+    DateTime? Created = null)
 {
     public bool IsDeleted => DeletedAt != null;
 
-    /// <summary>Oluşturma zamanı: Id UUIDv7 ise içindeki ms damgası, değilse EditedAt.</summary>
-    public DateTime CreatedAt => NoteIds.CreatedAtUtc(Id) ?? EditedAt;
+    /// <summary>Oluşturma zamanı: kayıtlı değer (Memos'tan gelen not), yoksa UUIDv7 damgası, o da yoksa EditedAt.</summary>
+    public DateTime CreatedAt => Created ?? NoteIds.CreatedAtUtc(Id) ?? EditedAt;
 }
 
 public static class NoteIds

@@ -88,6 +88,22 @@ public static class RichText
         return Normalize(list, textLength);
     }
 
+    /// <summary>[start,end) aralığını biçimsiz <paramref name="insert"/> ile değiştirir; dışarıda kalan biçimler korunur/kayar.</summary>
+    public static (string Text, List<Mark> Marks) Replace(string text, IReadOnlyList<Mark> marks, int start, int end, string insert)
+    {
+        var s = Math.Clamp(start, 0, text.Length);
+        var e = Math.Clamp(end, s, text.Length);
+        var result = text[..s] + insert + text[e..];
+        var delta = insert.Length - (e - s);
+        var list = new List<Mark>();
+        foreach (var m in Normalize(marks, text.Length))
+        {
+            if (m.Start < s) list.Add(m with { End = Math.Min(m.End, s) });
+            if (m.End > e) list.Add(m with { Start = Math.Max(m.Start, e) + delta, End = m.End + delta });
+        }
+        return (result, Normalize(list, result.Length));
+    }
+
     /// <summary>index karakterini kaplayan türler (bitiş hariç).</summary>
     public static HashSet<string> TypesAt(IReadOnlyList<Mark> marks, int index) =>
         marks.Where(m => MarkTypes.All.Contains(m.Type) && m.Start <= index && index < m.End)

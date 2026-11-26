@@ -1,46 +1,25 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using StickyNotes.Core;
 
 namespace StickyNotes.App;
 
-public partial class ChecklistItemViewModel : ObservableObject
-{
-    public string Id { get; }
-
-    [ObservableProperty] private string _text;
-    [ObservableProperty] private bool _done;
-    [ObservableProperty] private int _indent;
-
-    public ChecklistItemViewModel(ChecklistItem item)
-    {
-        Id = item.Id;
-        _text = item.Text;
-        _done = item.Done;
-        _indent = item.Indent;
-    }
-
-    public ChecklistItem ToModel() => new(Id, Text, Done, Indent);
-}
-
 public partial class NoteViewModel : ObservableObject
 {
     private bool _loading;
+    private DateTime _createdAt;
 
     public string Id { get; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsChecklist))]
-    private string _type;
 
     [ObservableProperty] private string _color;
     [ObservableProperty] private string _text = "";
 
-    /// <summary>Metin biçim aralıkları (kalın/altı çizili/üstü çizili); yalnızca metin notlarında dolu.</summary>
+    /// <summary>Notun başlığı (F2); boşsa şeritte oluşturma tarihi görünür.</summary>
+    [ObservableProperty] private string _noteTitle = "";
+
+    /// <summary>Metin biçim aralıkları (kalın/altı çizili/üstü çizili).</summary>
     public IReadOnlyList<Mark> Marks { get; private set; } = Array.Empty<Mark>();
 
     /// <summary>Not penceresi daraltılmış mı (yalnızca başlık satırı görünür).</summary>
@@ -52,8 +31,6 @@ public partial class NoteViewModel : ObservableObject
     /// <summary>Son diske yazılan opaklık.</summary>
     public double SavedOpacity { get; set; } = 1.0;
 
-    public ObservableCollection<ChecklistItemViewModel> Items { get; } = new();
-
     /// <summary>Memos'tan gelen, bu kullanıcının düzenleyemediği not (yalnızca okunur).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEditable))]
@@ -64,26 +41,23 @@ public partial class NoteViewModel : ObservableObject
 
     public bool IsEditable => !IsReadOnly;
 
-    public bool IsChecklist => Type == NoteType.Checklist;
-
-    /// <summary>Daraltılmış not penceresinin başlık satırında gösterilen ilk satır.</summary>
-    public string Title => NoteContent.FirstLine(Type, BuildContent());
+    /// <summary>Şeritte gösterilen başlık.</summary>
+    public string Title => NoteContent.DisplayTitle(NoteTitle, _createdAt);
 
     /// <summary>Son diske yazılan içerik imzası (gereksiz edited_at güncellemesini önler).</summary>
     public string? SavedSignature { get; set; }
 
-    /// <summary>İçerik, renk ya da tür değiştiğinde tetiklenir (yükleme sırasında tetiklenmez).</summary>
+    /// <summary>İçerik ya da renk değiştiğinde tetiklenir (yükleme sırasında tetiklenmez).</summary>
     public event Action? Changed;
 
     public NoteViewModel(Note note)
     {
         Id = note.Id;
-        _type = note.Type;
+        _createdAt = note.CreatedAt;
         _color = note.Color;
         _noteOpacity = SavedOpacity = note.Opacity;
-        Items.CollectionChanged += OnItemsChanged;
         LoadContent(note.Content);
-        SavedSignature = _type + "|" + _color + "|" + BuildContent();
+        SavedSignature = _color + "|" + BuildContent();
     }
 
     private void LoadContent(string content)
@@ -91,29 +65,12 @@ public partial class NoteViewModel : ObservableObject
         _loading = true;
         try
         {
+            NoteTitle = NoteContent.ParseTitle(content);
             Text = NoteContent.ParseText(content);
             Marks = NoteContent.ParseMarks(content);
-            Items.Clear();
-            foreach (var i in NoteContent.ParseItems(content)) AddItemInternal(Items.Count, i);
-            if (IsChecklist && Items.Count == 0) AddItemInternal(0, NoteContent.NewItem(""));
         }
         finally { _loading = false; }
     }
-
-    private void AddItemInternal(int index, ChecklistItem model)
-    {
-        var vm = new ChecklistItemViewModel(model);
-        vm.PropertyChanged += (_, _) => Raise();
-        Items.Insert(index, vm);
-    }
-
-    public ChecklistItemViewModel InsertItem(int index, string text = "")
-    {
-        AddItemInternal(index, NoteContent.NewItem(text));
-        return Items[index];
-    }
-
-    private void OnItemsChanged(object? s, NotifyCollectionChangedEventArgs e) => Raise();
 
     /// <summary>
     /// Düzenleyiciden gelen metin ve biçim aralıkları. Eski notu açmak (yalnızca CRLF→LF farkı, biçim yok)
@@ -132,25 +89,25 @@ public partial class NoteViewModel : ObservableObject
 
     partial void OnTextChanged(string value) => Raise();
     partial void OnColorChanged(string value) => Raise();
-    partial void OnTypeChanged(string value) => Raise();
     partial void OnIsCollapsedChanged(bool value) => Raise();
     partial void OnNoteOpacityChanged(double value) => Raise();
+
+    partial void OnNoteTitleChanged(string value)
+    {
+        OnPropertyChanged(nameof(Title));
+        Raise();
+    }
 
     private void Raise()
     {
         if (_loading) return;
-        OnPropertyChanged(nameof(Title));
         Changed?.Invoke();
     }
 
-    /// <summary>Geçerli türe göre content JSON'u üretir.</summary>
-    public string BuildContent() =>
-        IsChecklist
-            ? NoteContent.CreateChecklist(Items.Select(i => i.ToModel()))
-            : NoteContent.CreateText(Text, Marks);
+    public string BuildContent() => NoteContent.CreateText(Text, Marks, NoteTitle);
 
     /// <summary>Kaydedilmemiş değişiklik var mı (diske giden içerikle karşılaştırır).</summary>
-    public bool IsDirty => Type + "|" + Color + "|" + BuildContent() != SavedSignature;
+    public bool IsDirty => Color + "|" + BuildContent() != SavedSignature;
 
     /// <summary>Eşitlemeden gelen erişim durumu. Salt okunur not düzenlenemez; renk/opaklık/konum yine değişir.</summary>
     public void SetAccess(bool readOnly, string author)
@@ -159,46 +116,19 @@ public partial class NoteViewModel : ObservableObject
         IsReadOnly = readOnly;
     }
 
-    /// <summary>Uzaktan güncellenmiş notu (tür, renk, opaklık, içerik) yükler. Değişiklik olarak sayılmaz (kaydetmez).</summary>
+    /// <summary>Uzaktan güncellenmiş notu (renk, opaklık, içerik) yükler. Değişiklik olarak sayılmaz (kaydetmez).</summary>
     public void ReloadFrom(Note note)
     {
         _loading = true;
         try
         {
-            Type = note.Type;
+            _createdAt = note.CreatedAt;
             Color = note.Color;
             NoteOpacity = SavedOpacity = note.Opacity;
             LoadContent(note.Content);
         }
         finally { _loading = false; }
-        SavedSignature = Type + "|" + Color + "|" + BuildContent();
+        SavedSignature = Color + "|" + BuildContent();
         OnPropertyChanged(nameof(Title));
-    }
-
-    /// <summary>Metin ↔ checklist dönüşümü; içerik korunur.</summary>
-    public void ToggleType()
-    {
-        if (IsReadOnly) return;
-        _loading = true;
-        try
-        {
-            if (IsChecklist)
-            {
-                var text = NoteContent.ItemsToText(Items.Select(i => i.ToModel()));
-                Type = NoteType.Text;
-                Text = text;
-                Marks = Array.Empty<Mark>();   // checklist biçimi kapsam dışı; biçim düşer
-            }
-            else
-            {
-                var items = NoteContent.TextToItems(Text);
-                Marks = Array.Empty<Mark>();   // metin→checklist: biçim düşer (metin korunur)
-                Items.Clear();
-                foreach (var i in items) AddItemInternal(Items.Count, i);
-                Type = NoteType.Checklist;
-            }
-        }
-        finally { _loading = false; }
-        Raise();
     }
 }

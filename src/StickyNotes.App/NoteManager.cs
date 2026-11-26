@@ -51,14 +51,13 @@ public sealed class NoteManager
         SettingsChanged?.Invoke(s);
     }
 
-    /// <summary>Notun rengi/opaklığı/boyutu/türü yeni notlar için varsayılan olur.</summary>
+    /// <summary>Notun rengi/opaklığı/boyutu yeni notlar için varsayılan olur.</summary>
     public void MakeDefault(NoteWindow w)
     {
         UpdateSettings(s => s with
         {
             DefaultColor = w.Vm.Color,
             DefaultOpacity = w.Vm.NoteOpacity,
-            DefaultType = w.Vm.Type,
             DefaultWidth = w.VisibleWidth,
             DefaultHeight = w.ExpandedHeight,
         });
@@ -111,7 +110,7 @@ public sealed class NoteManager
     public void NewNote()
     {
         var d = Settings;
-        var note = Repo.Create(d.DefaultType, d.DefaultColor);
+        var note = Repo.Create(NoteType.Text, d.DefaultColor);
         if (d.DefaultOpacity < 1.0) { Repo.SetOpacity(note.Id, d.DefaultOpacity); note = Repo.Get(note.Id) ?? note; }
         AppLog.Info("Yeni not " + note.Id);
         var w = OpenNote(note.Id);
@@ -181,6 +180,7 @@ public sealed class NoteManager
             if (note == null || note.IsDeleted)
             {
                 _windows.Remove(id);
+                w.CommitTitleEdit();
                 w.Flush();          // düzenlenmiş yazı çöpteki nota kalsın
                 w.CloseForReal();
                 continue;
@@ -200,10 +200,10 @@ public sealed class NoteManager
         try
         {
             var content = vm.BuildContent();
-            var sig = vm.Type + "|" + vm.Color + "|" + content;
+            var sig = vm.Color + "|" + content;
             if (sig != vm.SavedSignature)
             {
-                Repo.Update(vm.Id, vm.Type, content, vm.Color);
+                Repo.Update(vm.Id, NoteType.Text, content, vm.Color);
                 vm.SavedSignature = sig;
             }
             if (Math.Abs(vm.NoteOpacity - vm.SavedOpacity) > 1e-9)
@@ -234,6 +234,7 @@ public sealed class NoteManager
     {
         if (_windows.TryGetValue(id, out var w))
         {
+            w.CommitTitleEdit();
             w.Flush();
             w.CloseForReal();
             _windows.Remove(id);
@@ -289,7 +290,7 @@ public sealed class NoteManager
     {
         foreach (var w in _windows.Values.ToList())
         {
-            try { w.Flush(); w.CloseForReal(); } catch (Exception ex) { AppLog.Error("Kapatma hatası", ex); }
+            try { w.CommitTitleEdit(); w.Flush(); w.CloseForReal(); } catch (Exception ex) { AppLog.Error("Kapatma hatası", ex); }
         }
         _windows.Clear();
         _explorer?.Close();

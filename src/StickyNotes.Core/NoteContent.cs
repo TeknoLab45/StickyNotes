@@ -1,11 +1,13 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace StickyNotes.Core;
 
 /// <summary>
-/// content JSON biçimi: {"v":1,"text":"..."} (text) ya da {"v":1,"items":[{id,text,done,indent}]} (checklist).
-/// Metin notunda isteğe bağlı biçim: "marks":[{"t":"b|u|s","s":başlangıç,"e":bitiş}] — s/e metindeki
+/// content JSON biçimi: {"v":1,"title":"...","text":"..."}; title isteğe bağlı (boşsa yazılmaz).
+/// Metin Markdown kaynağıdır. İsteğe bağlı biçim: "marks":[{"t":"b|u|s","s":başlangıç,"e":bitiş}] — s/e text içindeki
 /// UTF-16 kod birimi ofseti, [s,e) yarı açık. marks yoksa alan yazılmaz (eski biçimle bayt bayt aynı).
+/// Eski checklist biçimi {"v":1,"items":[...]} yalnızca okunur (depo açılışında metne çevrilir).
 /// </summary>
 public static class NoteContent
 {
@@ -14,17 +16,40 @@ public static class NoteContent
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
-    public static string CreateText(string text, IEnumerable<Mark>? marks = null)
+    public static string CreateText(string text, IEnumerable<Mark>? marks = null, string? title = null)
     {
+        var root = new Dictionary<string, object> { ["v"] = 1 };
+        var t = NormalizeTitle(title);
+        if (t.Length > 0) root["title"] = t;
+        root["text"] = text;
         var list = marks is null ? new List<Mark>() : RichText.Normalize(marks, text.Length);
-        if (list.Count == 0)
-            return JsonSerializer.Serialize(new { v = 1, text }, Opts);
-        return JsonSerializer.Serialize(new
+        if (list.Count > 0) root["marks"] = list.Select(m => new { t = m.Type, s = m.Start, e = m.End });
+        return JsonSerializer.Serialize(root, Opts);
+    }
+
+    /// <summary>Başlık tek satırdır: satır sonları boşluk olur, uçlar kırpılır.</summary>
+    public static string NormalizeTitle(string? title) =>
+        title is null ? "" : RichText.NormalizeNewlines(title).Replace('\n', ' ').Trim();
+
+    /// <summary>Notun kayıtlı başlığı; yoksa ya da içerik bozuksa "".</summary>
+    public static string ParseTitle(string content)
+    {
+        try
         {
-            v = 1,
-            text,
-            marks = list.Select(m => new { t = m.Type, s = m.Start, e = m.End })
-        }, Opts);
+            using var doc = JsonDocument.Parse(content);
+            var root = doc.RootElement;
+            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String)
+                return NormalizeTitle(t.GetString());
+        }
+        catch (JsonException) { }
+        return "";
+    }
+
+    /// <summary>Ekranda gösterilen başlık: kayıtlı başlık, yoksa oluşturma tarihi (yerel saat).</summary>
+    public static string DisplayTitle(string? title, DateTime createdUtc)
+    {
+        var t = NormalizeTitle(title);
+        return t.Length > 0 ? t : createdUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -132,44 +157,16 @@ public static class NoteContent
     public static string ItemsToText(IEnumerable<ChecklistItem> items) =>
         string.Join("\n", items.Select(i => i.Text));
 
-    /// <summary>text -> checklist dönüşümü (content JSON üzerinden).</summary>
-    public static string ToChecklist(string content) =>
-        CreateChecklist(TextToItems(ParseText(content)));
-
-    /// <summary>checklist -> text dönüşümü (content JSON üzerinden).</summary>
-    public static string ToText(string content) =>
-        CreateText(ItemsToText(ParseItems(content)));
-
-    /// <summary>Arama için düz metin.</summary>
-    public static string PlainText(string type, string content) =>
-        type == NoteType.Checklist ? ItemsToText(ParseItems(content)) : ParseText(content);
-
-    /// <summary>Checklist ilerlemesi: metni dolu maddelerden kaçı işaretli.</summary>
-    public static (int Done, int Total) ChecklistProgress(string content)
+    /// <summary>Arama için düz metin (başlık + içerik).</summary>
+    public static string PlainText(string type, string content)
     {
-        var items = ParseItems(content).Where(i => !string.IsNullOrWhiteSpace(i.Text)).ToList();
-        return (items.Count(i => i.Done), items.Count);
+        var body = type == NoteType.Checklist ? ItemsToText(ParseItems(content)) : ParseText(content);
+        var title = ParseTitle(content);
+        return title.Length > 0 ? title + "\n" + body : body;
     }
 
-    /// <summary>Explorer önizleme satırı: checklist = "2/5 tamam"; metin = ilk satırdan sonraki dolu satırlar (boşsa "").</summary>
-    public static string Preview(string type, string content)
-    {
-        if (type == NoteType.Checklist)
-        {
-            var (d, t) = ChecklistProgress(content);
-            return t == 0 ? "" : $"{d}/{t} tamam";
-        }
-        var lines = PlainText(type, content).Replace("\r\n", "\n").Split('\n')
-            .Select(l => l.Trim()).Where(l => l.Length > 0).Skip(1);
-        return string.Join(" · ", lines);
-    }
-
-    /// <summary>Explorer listesi için ilk dolu satır.</summary>
-    public static string FirstLine(string type, string content)
-    {
-        var text = PlainText(type, content);
-        foreach (var line in text.Replace("\r\n", "\n").Split('\n'))
-            if (!string.IsNullOrWhiteSpace(line)) return line.Trim();
-        return "(boş not)";
-    }
+    /// <summary>Explorer önizleme satırı: içeriğin dolu satırları.</summary>
+    public static string Preview(string content) =>
+        string.Join(" · ", RichText.NormalizeNewlines(ParseText(content)).Split('\n')
+            .Select(l => l.Trim()).Where(l => l.Length > 0));
 }
