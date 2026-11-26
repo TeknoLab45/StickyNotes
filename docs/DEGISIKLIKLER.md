@@ -1,5 +1,11 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-26 — TEK-463 — Coder: gizli bilgi taraması, sürüm 0.3.1, repo public
+
+- Bütün git geçmişi, dallar, tag'ler, exe, workflow, release asset'i ve Actions logları tarandı: gerçek sır yok. Rapor: `docs/GUVENLIK_TARAMASI.md`.
+- Sürüm `0.3.1` (csproj, `CHANGELOG.md`, README). Kod değişikliği yok.
+- Repo public yapıldı; `v0.3.1` tag'i ile release CI çalıştı.
+
 ## 2026-11-26 — TEK-462 (ana: TEK-460) — Coder: Inno Setup kurulumu, sürüm 0.3.0, setup exe yükleyen release CI
 
 - `App.xaml.cs`: `OnStartup` iki sabit mutex açar (`StickyNotesSetupMutex`, `Global\StickyNotesSetupMutex`); `Global` açılamazsa hata loglanır ve yutulur. Çıkışta bırakılır.

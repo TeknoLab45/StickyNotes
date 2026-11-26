@@ -2,6 +2,10 @@
 
 Kullanıcıya dönük sürüm notları. Ayrıntılı geliştirme kayıtları: `docs/DEGISIKLIKLER.md`.
 
+## [0.3.1] - 2026-11-26
+
+- Depo public yapilmadan once gizli bilgi taramasi yapildi (sonuc: temiz); rapor `docs/GUVENLIK_TARAMASI.md`. Uygulama davranisi degismedi.
+
 ## [0.3.0] - 2026-11-26
 
 - Windows için kurulum paketi eklendi (`StickyNotes-Setup-0.3.0.exe`): yönetici izni istemeden kullanıcı başına kurulur, Türkçe ve İngilizce arayüz.
