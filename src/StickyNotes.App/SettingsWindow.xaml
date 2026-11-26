@@ -46,18 +46,16 @@
         <TextBlock Style="{StaticResource Section}" Text="Yeni notlar için varsayılan"/>
         <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
             <TextBlock Style="{StaticResource Label}" Text="Renk"/>
             <ComboBox x:Name="DefColorCombo" Grid.Column="1" SelectionChanged="Defaults_Changed" AutomationProperties.AutomationId="DefColorCombo"/>
             <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Opaklık"/>
             <ComboBox x:Name="DefOpacityCombo" Grid.Row="1" Grid.Column="1" SelectionChanged="Defaults_Changed" AutomationProperties.AutomationId="DefOpacityCombo"/>
-            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Tür"/>
-            <ComboBox x:Name="DefTypeCombo" Grid.Row="2" Grid.Column="1" SelectionChanged="Defaults_Changed" AutomationProperties.AutomationId="DefTypeCombo"/>
-            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Genişlik (px)"/>
-            <TextBox x:Name="DefWidthBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource Field}" LostFocus="Size_Commit" KeyDown="Size_KeyDown"
+            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Genişlik (px)"/>
+            <TextBox x:Name="DefWidthBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource Field}" LostFocus="Size_Commit" KeyDown="Size_KeyDown"
                      AutomationProperties.AutomationId="DefWidthBox"/>
-            <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="Yükseklik (px)"/>
-            <TextBox x:Name="DefHeightBox" Grid.Row="4" Grid.Column="1" Style="{StaticResource Field}" LostFocus="Size_Commit" KeyDown="Size_KeyDown"
+            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Yükseklik (px)"/>
+            <TextBox x:Name="DefHeightBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource Field}" LostFocus="Size_Commit" KeyDown="Size_KeyDown"
                      AutomationProperties.AutomationId="DefHeightBox"/>
         </Grid>
         <TextBlock Style="{StaticResource Label}" TextWrapping="Wrap" FontSize="11.5" Margin="0,4,0,0"

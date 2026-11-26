@@ -27,7 +27,7 @@ public sealed class SettingsAndSnapTests : IDisposable
         var s = new AppSettings
         {
             FontFamily = "Consolas", FontSize = 18, FontStyle = NoteFontStyle.Italic,
-            DefaultColor = "green", DefaultOpacity = 0.2, DefaultWidth = 300, DefaultHeight = 220, DefaultType = NoteType.Checklist,
+            DefaultColor = "green", DefaultOpacity = 0.2, DefaultWidth = 300, DefaultHeight = 220,
             HotkeyHideAll = "Ctrl+Alt+H", HotkeyShowAll = "", HotkeyExplorer = "Alt+X", HotkeyNewNote = "Alt+N",
         };
         new NoteRepository(path).SaveSettings(s);

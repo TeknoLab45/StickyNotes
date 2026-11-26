@@ -188,17 +188,19 @@ public class NoteContentRichTextTests
     {
         var content = NoteContent.CreateText("başlık\nikinci", new[] { M("b", 0, 6), M("s", 7, 13) });
         Assert.Equal("başlık\nikinci", NoteContent.PlainText(NoteType.Text, content));
-        Assert.Equal("başlık", NoteContent.FirstLine(NoteType.Text, content));
-        Assert.Equal("ikinci", NoteContent.Preview(NoteType.Text, content));
+        Assert.Equal("başlık · ikinci", NoteContent.Preview(content));
     }
 
     [Fact]
-    public void ToChecklist_DropsMarks()
+    public void Replace_KeepsAndShiftsMarks_AndInsertsPlainText()
     {
-        var content = NoteContent.CreateText("bir\niki", new[] { M("b", 0, 3) });
-        var checklist = NoteContent.ToChecklist(content);
-        Assert.Empty(NoteContent.ParseMarks(checklist));
-        Assert.Equal(new[] { "bir", "iki" }, NoteContent.ParseItems(checklist).Select(i => i.Text));
+        var (text, marks) = RichText.Replace("abcdef", new[] { M("b", 0, 6) }, 2, 4, "XYZ");
+        Assert.Equal("abXYZef", text);
+        Assert.Equal(new[] { M("b", 0, 2), M("b", 5, 7) }, marks);
+
+        (text, marks) = RichText.Replace("ab cd", new[] { M("u", 3, 5) }, 0, 0, "- ");
+        Assert.Equal("- ab cd", text);
+        Assert.Equal(new[] { M("u", 5, 7) }, marks);
     }
 
     [Fact]

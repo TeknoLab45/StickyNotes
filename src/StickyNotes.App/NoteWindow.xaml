@@ -46,9 +46,6 @@
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="2,0,0,0">
                             <Button x:Name="ColorButton" Style="{StaticResource StripButton}" Content="&#xE790;" ToolTip="Renk ve opaklık"
                                     Click="ColorButton_Click" AutomationProperties.AutomationId="ColorButton"/>
-                            <Button x:Name="TypeButton" Style="{StaticResource StripButton}" Content="&#xE9D5;" ToolTip="Metin / checklist"
-                                    IsEnabled="{Binding IsEditable}"
-                                    Click="TypeButton_Click" AutomationProperties.AutomationId="TypeButton"/>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,2,0">
                             <Button x:Name="NewButton" Style="{StaticResource StripButton}" Content="&#xE710;" ToolTip="Yeni not (Ctrl+N)"
@@ -80,10 +77,17 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <!-- Soluk başlık: notun ilk satırı (her zaman görünür) -->
-                        <TextBlock x:Name="StripTitle" Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="#80000000"
-                                   VerticalAlignment="Center" Margin="6,0" TextTrimming="CharacterEllipsis"
-                                   AutomationProperties.AutomationId="StripTitle" Background="Transparent"/>
+                        <!-- Soluk başlık (yoksa tarih); F2 ile aynı yerde düzenlenir -->
+                        <Grid>
+                            <TextBlock x:Name="StripTitle" Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="#80000000"
+                                       VerticalAlignment="Center" Margin="6,0" TextTrimming="CharacterEllipsis"
+                                       AutomationProperties.AutomationId="StripTitle" Background="Transparent"/>
+                            <TextBox x:Name="TitleEditor" Visibility="Collapsed" FontSize="12" FontWeight="SemiBold" MaxLength="200"
+                                     VerticalAlignment="Center" Margin="4,0" Padding="0,1" Background="#B3FFFFFF"
+                                     BorderThickness="1" BorderBrush="#55000000" ContextMenu="{x:Null}"
+                                     PreviewKeyDown="TitleEditor_PreviewKeyDown" LostKeyboardFocus="TitleEditor_LostKeyboardFocus"
+                                     AutomationProperties.AutomationId="TitleEditor"/>
+                        </Grid>
                     </DockPanel>
                 </Border>
 
@@ -99,7 +103,7 @@
                         </Style>
                     </Grid.Style>
 
-                    <!-- metin (biçimli: kalın / altı çizili / üstü çizili). İçerik kod-behind'da RichTextMapper ile eşlenir. -->
+                    <!-- Markdown metni (kalın / altı çizili / üstü çizili biçimli). İçerik kod-behind'da RichTextMapper ile eşlenir. -->
                     <RichTextBox x:Name="TextEditor" AcceptsReturn="True" AcceptsTab="True" IsReadOnly="{Binding IsReadOnly}"
                                  VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0"
                                  Padding="12,8,6,16" IsDocumentEnabled="False"
@@ -125,59 +129,11 @@
                                           AutomationProperties.AutomationId="MenuCopy"/>
                                 <MenuItem Header="Yapıştır" InputGestureText="Ctrl+V" Command="ApplicationCommands.Paste"
                                           AutomationProperties.AutomationId="MenuPaste"/>
+                                <MenuItem x:Name="MenuPastePlain" Header="Düz metin olarak yapıştır" InputGestureText="Ctrl+Shift+V"
+                                          Click="MenuPastePlain_Click" AutomationProperties.AutomationId="MenuPastePlain"/>
                             </ContextMenu>
                         </RichTextBox.ContextMenu>
-                        <RichTextBox.Style>
-                            <Style TargetType="RichTextBox" BasedOn="{StaticResource {x:Type RichTextBox}}">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsChecklist}" Value="True">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </RichTextBox.Style>
                     </RichTextBox>
-
-                    <!-- checklist -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10,8,4,16">
-                        <ScrollViewer.Style>
-                            <Style TargetType="ScrollViewer">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsChecklist}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ScrollViewer.Style>
-                        <ItemsControl x:Name="ItemsHost" ItemsSource="{Binding Items}" AutomationProperties.AutomationId="ChecklistItems">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <DockPanel LastChildFill="True" Margin="0,2">
-                                        <CheckBox DockPanel.Dock="Left" VerticalAlignment="Top" Margin="2,2,8,0"
-                                                  IsChecked="{Binding Done}"
-                                                  IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                        <TextBox x:Name="ItemText" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
-                                                 IsReadOnly="{Binding DataContext.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                 Background="Transparent" BorderThickness="0"
-                                                 TextWrapping="Wrap" AcceptsReturn="False"
-                                                 PreviewKeyDown="ItemText_PreviewKeyDown">
-                                            <TextBox.Style>
-                                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Done}" Value="True">
-                                                            <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                            <Setter Property="Opacity" Value="0.55"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBox.Style>
-                                        </TextBox>
-                                    </DockPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
 
                     <!-- Boyutlandırma tutamacı (sağ alt köşe): tutup sürüklenir -->
                     <Border x:Name="Grip" Tag="8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="18" Height="18"

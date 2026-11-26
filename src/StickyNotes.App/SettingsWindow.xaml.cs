@@ -31,8 +31,6 @@ public partial class SettingsWindow : Window
         foreach (var s in NoteFontStyle.All) FontStyleCombo.Items.Add(new Choice<string>(s, NoteFontStyle.Label(s)));
         foreach (var c in NoteColors.All) DefColorCombo.Items.Add(new Choice<string>(c, NoteTheme.Label(c)));
         foreach (var o in NoteOpacity.Levels) DefOpacityCombo.Items.Add(new Choice<double>(o, "%" + (int)Math.Round(o * 100)));
-        DefTypeCombo.Items.Add(new Choice<string>(NoteType.Text, "Metin"));
-        DefTypeCombo.Items.Add(new Choice<string>(NoteType.Checklist, "Checklist"));
 
         MemosVisibilityCombo.Items.Add(new Choice<string>(MemosVisibility.Space, "Alan üyeleri (SPACE)"));
         MemosVisibilityCombo.Items.Add(new Choice<string>(MemosVisibility.Private, "Özel (PRIVATE)"));
@@ -66,7 +64,6 @@ public partial class SettingsWindow : Window
         Select(FontStyleCombo, s.FontStyle);
         Select(DefColorCombo, s.DefaultColor);
         Select(DefOpacityCombo, NoteOpacity.Levels.OrderBy(l => Math.Abs(l - s.DefaultOpacity)).First());
-        Select(DefTypeCombo, s.DefaultType);
         DefWidthBox.Text = s.DefaultWidth.ToString("0", CultureInfo.InvariantCulture);
         DefHeightBox.Text = s.DefaultHeight.ToString("0", CultureInfo.InvariantCulture);
         HkHideBox.Text = s.HotkeyHideAll;
@@ -104,7 +101,6 @@ public partial class SettingsWindow : Window
         {
             DefaultColor = Get<string>(DefColorCombo) ?? s.DefaultColor,
             DefaultOpacity = DefOpacityCombo.SelectedItem is Choice<double> o ? o.Value : s.DefaultOpacity,
-            DefaultType = Get<string>(DefTypeCombo) ?? s.DefaultType,
         });
     }
 

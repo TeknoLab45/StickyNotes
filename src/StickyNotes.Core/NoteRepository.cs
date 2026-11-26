@@ -40,7 +40,8 @@ public sealed class NoteRepository
             edited_at TEXT NOT NULL,
             deleted_at TEXT NULL,
             purged_at TEXT NULL,
-            opacity REAL NOT NULL DEFAULT 1.0);");
+            opacity REAL NOT NULL DEFAULT 1.0,
+            created_at TEXT NULL);");
         Exec(c, @"CREATE TABLE IF NOT EXISTS window_state(
             note_id TEXT PRIMARY KEY,
             x REAL NOT NULL, y REAL NOT NULL, width REAL NOT NULL, height REAL NOT NULL,
@@ -64,6 +65,32 @@ public sealed class NoteRepository
         Exec(c, "CREATE UNIQUE INDEX IF NOT EXISTS sync_state_memo ON sync_state(memo_name);");
         MigrateNotes(c);
         MigrateWindowState(c);
+        MigrateChecklists(c);
+    }
+
+    /// <summary>
+    /// Liste (checklist) türü kaldırıldı: eski notlar Markdown görev listesi metnine çevrilir. Üretilen metin eşitlemede
+    /// gönderilenle aynıdır ve edited_at değişmez; bu yüzden çevirme sunucuya yeni bir yazma doğurmaz.
+    /// </summary>
+    private static void MigrateChecklists(SqliteConnection c)
+    {
+        var rows = new List<(string Id, string Content)>();
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.CommandText = "SELECT id,content FROM notes WHERE type=$t AND purged_at IS NULL";
+            cmd.Parameters.AddWithValue("$t", NoteType.Checklist);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) rows.Add((r.GetString(0), r.GetString(1)));
+        }
+        foreach (var (id, content) in rows)
+        {
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = "UPDATE notes SET type=$t,content=$c WHERE id=$id";
+            cmd.Parameters.AddWithValue("$t", NoteType.Text);
+            cmd.Parameters.AddWithValue("$c", NoteContent.CreateText(MemoMarkdown.FromNote(NoteType.Checklist, content)));
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.ExecuteNonQuery();
+        }
     }
 
     // ---- Memos eşitlemesi ----
@@ -179,11 +206,12 @@ public sealed class NoteRepository
     }
 
     /// <summary>Uzaktan gelen not için yerel kayıt oluşturur (kimlik verilir). deletedAt doluysa çöpte başlar.</summary>
-    public void InsertRemote(string id, string type, string content, DateTime editedAt, DateTime? deletedAt)
+    public void InsertRemote(string id, string type, string content, DateTime editedAt, DateTime? deletedAt, DateTime? createdAt = null)
     {
         using var c = Open();
         using var cmd = c.CreateCommand();
-        cmd.CommandText = "INSERT INTO notes(id,type,content,color,edited_at,deleted_at) VALUES($id,$t,$c,$col,$e,$d)";
+        cmd.CommandText = "INSERT INTO notes(id,type,content,color,edited_at,deleted_at,created_at) VALUES($id,$t,$c,$col,$e,$d,$cr)";
+        cmd.Parameters.AddWithValue("$cr", createdAt is { } cr ? Ts(cr) : DBNull.Value);
         cmd.Parameters.AddWithValue("$id", id);
         cmd.Parameters.AddWithValue("$t", type);
         cmd.Parameters.AddWithValue("$c", content);
@@ -202,6 +230,17 @@ public sealed class NoteRepository
         cmd.Parameters.AddWithValue("$t", type);
         cmd.Parameters.AddWithValue("$c", content);
         cmd.Parameters.AddWithValue("$e", Ts(editedAt));
+        cmd.Parameters.AddWithValue("$id", noteId);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>Oluşturma zamanını yazar (Memos'tan gelen notun başlıksız hâlde gösterilen tarihi). edited_at değişmez.</summary>
+    public void SetCreatedAt(string noteId, DateTime createdAt)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE notes SET created_at=$cr WHERE id=$id AND purged_at IS NULL";
+        cmd.Parameters.AddWithValue("$cr", Ts(createdAt));
         cmd.Parameters.AddWithValue("$id", noteId);
         cmd.ExecuteNonQuery();
     }
@@ -251,6 +290,8 @@ public sealed class NoteRepository
     {
         if (!Columns(c, "notes").Contains("opacity"))
             Exec(c, "ALTER TABLE notes ADD COLUMN opacity REAL NOT NULL DEFAULT 1.0");
+        if (!Columns(c, "notes").Contains("created_at"))
+            Exec(c, "ALTER TABLE notes ADD COLUMN created_at TEXT NULL");
     }
 
     private static HashSet<string> Columns(SqliteConnection c, string table)
@@ -287,9 +328,10 @@ public sealed class NoteRepository
         ParseTs(r.GetString(4)),
         r.IsDBNull(5) ? null : ParseTs(r.GetString(5)),
         r.IsDBNull(6) ? null : ParseTs(r.GetString(6)),
-        NoteOpacity.Normalize(r.GetDouble(7)));
+        NoteOpacity.Normalize(r.GetDouble(7)),
+        r.IsDBNull(8) ? null : ParseTs(r.GetString(8)));
 
-    private const string Cols = "id,type,content,color,edited_at,deleted_at,purged_at,opacity";
+    private const string Cols = "id,type,content,color,edited_at,deleted_at,purged_at,opacity,created_at";
 
     public Note Create(string type = NoteType.Text, string color = NoteColors.Default, string? content = null)
     {

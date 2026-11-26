@@ -141,7 +141,7 @@ public sealed class SyncEngine
             if (existing is null)
             {
                 var (type, content) = MemoMarkdown.ToNote(m.Content);
-                _repo.InsertRemote(noteId, type, content, m.UpdateTime, archived ? _now() : null);
+                _repo.InsertRemote(noteId, type, content, m.UpdateTime, archived ? _now() : null, m.CreateTime);
                 c.Created++;
                 c.Pulled++;
                 var created = new SyncRecord(noteId, m.Name, s.Space, m.Creator, creatorName, readOnly, m.UpdateTime, remoteFp, _now());
@@ -224,6 +224,9 @@ public sealed class SyncEngine
     {
         var local = _repo.Get(rec.NoteId);
         if (local is null) return; // kalıcı silinmiş: yerele geri gelmez (memo silme DeletePendingAsync'te)
+        // Eski sürümün çektiği not: memo yerel nottan önce oluşturulmuşsa asıl oluşturma tarihi memonunkidir.
+        if (local.Created is null && m.CreateTime is { } memoCreated && memoCreated < local.CreatedAt.AddMinutes(-1))
+            _repo.SetCreatedAt(local.Id, memoCreated);
 
         var archived = m.State == "ARCHIVED";
         var remoteFp = MemoMarkdown.Fingerprint(m.Content, archived);
@@ -369,10 +372,16 @@ public sealed class SyncEngine
         _onRemoteApplied?.Invoke(local.Id);
     }
 
-    /// <summary>Çakışma kopyası: metin notu, başında "(çakışma kopyası)" satırı. Yeni kimlik; sonraki turda gönderilir.</summary>
+    /// <summary>Çakışma kopyası: "(çakışma kopyası)" etiketi başlık varsa başlığa, yoksa ilk satıra eklenir.
+    /// Yeni kimlik; sonraki turda gönderilir.</summary>
     private void CreateCopy(string markdown, Counters c)
     {
-        var (type, content) = MemoMarkdown.ToNote(ConflictLabel + "\n" + markdown);
+        var (type, content) = MemoMarkdown.ToNote(markdown);
+        var title = NoteContent.ParseTitle(content);
+        if (title.Length > 0)
+            content = NoteContent.CreateText(NoteContent.ParseText(content), NoteContent.ParseMarks(content), title + " " + ConflictLabel);
+        else
+            (type, content) = MemoMarkdown.ToNote(ConflictLabel + "\n" + markdown);
         _repo.Create(type, NoteColors.Default, content);
         c.Conflicts++;
     }

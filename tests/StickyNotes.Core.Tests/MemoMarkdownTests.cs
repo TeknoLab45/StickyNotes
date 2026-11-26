@@ -36,29 +36,73 @@ public class MemoMarkdownTests
     }
 
     [Fact]
-    public void Checklist_WithIndentAndDone_RoundTrips()
+    public void LegacyChecklist_BecomesMarkdownTaskList()
     {
-        var items = new[]
+        var content = NoteContent.CreateChecklist(new[]
         {
             NoteContent.NewItem("araç 34 ABC 123", done: true),
             NoteContent.NewItem("yedek parça", indent: 1),
-            NoteContent.NewItem("kontrol ğüşıöç", done: false),
-        };
-        var content = NoteContent.CreateChecklist(items);
-
+        });
         var md = MemoMarkdown.FromNote(NoteType.Checklist, content);
-        Assert.Equal("- [x] araç 34 ABC 123\n  - [ ] yedek parça\n- [ ] kontrol ğüşıöç", md);
+        Assert.Equal("- [x] araç 34 ABC 123\n  - [ ] yedek parça", md);
 
         var (type, back) = MemoMarkdown.ToNote(md);
-        Assert.Equal(NoteType.Checklist, type);
-        var parsed = NoteContent.ParseItems(back);
-        Assert.Equal(items.Select(i => (i.Text, i.Done, i.Indent)), parsed.Select(i => (i.Text, i.Done, i.Indent)));
+        Assert.Equal(NoteType.Text, type);
+        Assert.Equal(md, NoteContent.ParseText(back));
+    }
+
+    [Fact]
+    public void Title_IsFirstHeadingLine_BothWays()
+    {
+        var content = NoteContent.CreateText("- süt\n- ekmek", title: "Alışveriş");
+        var md = MemoMarkdown.FromNote(NoteType.Text, content);
+        Assert.Equal("# Alışveriş\n- süt\n- ekmek", md);
+        Assert.Equal(content, MemoMarkdown.ToNote(md).Content);
+
+        Assert.Equal("# Yalnız başlık", MemoMarkdown.FromNote(NoteType.Text, NoteContent.CreateText("", title: "Yalnız başlık")));
+    }
+
+    [Theory]
+    [InlineData("düz ilk satır\nikinci")]
+    [InlineData("#etiket\nmetin")]
+    [InlineData("## alt başlık\nmetin")]
+    [InlineData("metin\n# sonraki başlık")]
+    public void MemoWithoutTopHeading_HasNoTitle(string md)
+    {
+        var (_, content) = MemoMarkdown.ToNote(md);
+        Assert.Equal("", NoteContent.ParseTitle(content));
+        Assert.Equal(md, MemoMarkdown.FromNote(NoteType.Text, content));
+    }
+
+    [Theory]
+    [InlineData("# Başlık\n\ngövde")]
+    [InlineData("- madde\n  - alt\n1. bir\n- [ ] görev")]
+    [InlineData("2 ** 3 ** 4")]
+    [InlineData("** boşluklu **")]
+    [InlineData("***üçlü***")]
+    [InlineData("**- liste değil**")]
+    [InlineData("- **kalın madde** devam ~~çizili~~")]
+    public void Markdown_RoundTripsExactly(string md)
+    {
+        var (type, content) = MemoMarkdown.ToNote(md);
+        Assert.Equal(md, MemoMarkdown.FromNote(type, content));
+    }
+
+    [Fact]
+    public void Bold_WithSurroundingSpacesAndListMarker_StaysValidMarkdown()
+    {
+        // Yazarken kalın modu: boşluk ve liste işareti de kalın kaydedilebilir; markdown'da işaretlerin dışında kalır.
+        var content = NoteContent.CreateText("- merhaba dünya ", new[] { new Mark("b", 0, 10), new Mark("b", 15, 16) });
+        Assert.Equal("- **merhaba** dünya ", MemoMarkdown.FromNote(NoteType.Text, content));
+
+        var nested = NoteContent.CreateText("ab cd ef", new[] { new Mark("b", 0, 6), new Mark("s", 3, 8) });
+        Assert.Equal("**ab ~~cd~~** ~~ef~~", MemoMarkdown.FromNote(NoteType.Text, nested));
     }
 
     [Fact]
     public void ForeignMarkdown_IsKeptAsPlainText()
     {
-        var md = "# Başlık\n- madde\n[link](https://example.com)";
+        var md = "giriş\n# Ara başlık\n- madde\n[link](https://example.com)";
         var (type, content) = MemoMarkdown.ToNote(md);
         Assert.Equal(NoteType.Text, type);
         Assert.Equal(md, NoteContent.ParseText(content));

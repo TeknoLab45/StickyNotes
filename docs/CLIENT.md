@@ -4,21 +4,21 @@
 - Başlatınca tray'de ikon belirir (gizli simgeler okunun altında olabilir). İlk açılışta boş bir not açılır.
 - **Tray**: çift tık = yeni not. Sağ tık menüsü (temalı): Yeni not, Tüm notları göster, Tüm notları gizle, Explorer, Ayarlar…, Tüm notları opak yap, Çöp kutusu, Çıkış.
 - **Not penceresi**: çerçevesiz, saydam pencere + yumuşak gölge, her zaman üstte; üst şeritten sürüklenir. Boyutlandırma: görünür kenarın hemen dışındaki 12 px gölge payından ya da sağ-alt tutamaçtan.
-- **Biçim (metin notları)**: seçili yazıya **Ctrl+B** kalın, **Ctrl+U** altı çizili; **üstü çizili** yalnızca sağ tık menüsünde (kısayolu yok). Sağ tık menüsü: Kalın, Altı çizili, Üstü çizili, Kes, Kopyala, Yapıştır. Seçim yoksa biçim maddeleri devre dışı. Biçim not içinde saklanır (`docs/BICIMLENDIRME.md`).
-  Kısıtlar: yalnızca seçili yazıya biçim (seçimsiz yazmaya devam yok); yapıştırma her zaman düz metin; checklist'e dönüşümde biçim düşer; italik/renk/boyut/liste/hizalama yok (Ctrl+I, Ctrl+E, Ctrl+], Ctrl+Shift+L bir şey yapmaz). Biçimi bilmeyen eski sürümle düzenlenen not biçimini kaybeder (metin korunur); tüm PC'ler aynı sürüme güncellenmeli.
-  Şerit (soluk başlık = ilk satır): renk+opaklık menüsü · metin↔checklist · **+ yeni not** · daralt/genişlet · çöpe at · gizle.
+- **Biçim**: **Ctrl+B** kalın (seçim yoksa yazarken kalın modu aç/kapat), **Ctrl+U** altı çizili; **üstü çizili** yalnızca sağ tık menüsünde. Altı/üstü çizili seçim ister. Biçim not içinde saklanır (`docs/BICIMLENDIRME.md`).
+- **Başlık (F2), Markdown listeleri, düz metin yapıştırma (Ctrl+Shift+V)**: `docs/NOT_DUZENLEYICI.md`.
+  Kısıtlar: italik/renk/boyut/hizalama yok (Ctrl+I, Ctrl+E, Ctrl+], Ctrl+Shift+L bir şey yapmaz). Biçimi ya da başlığı bilmeyen eski sürümle düzenlenen not bunları kaybeder (metin korunur); tüm PC'ler aynı sürüme güncellenmeli.
+  Şerit (soluk başlık; yoksa oluşturma tarihi): renk+opaklık menüsü · **+ yeni not** · daralt/genişlet · çöpe at · gizle.
 - **Opaklık**: renk düğmesinin menüsünde "Opaklık ▸" alt menüsü: %100'den %20'ye 10'ar adım; her notun ayarı ayrı ve kalıcıdır (`notes.opacity`). Fare notun üzerindeyken ya da not odaktayken %100, ayrılınca seçili değere döner. Tray: "Tüm notları opak yap". Ctrl+F: Explorer arama kutusuna gider.
-- **Daralt/genişlet**: şeride çift tık ya da şeritteki ok düğmesi. Daraltılınca yalnızca başlık satırı (notun ilk satırı) kalır; tekrar tıklayınca eski boyuta döner. Durum SQLite'a (`window_state.collapsed`, `expanded_height`) yazılır, yeniden açılışta korunur.
+- **Daralt/genişlet**: şeride çift tık ya da şeritteki ok düğmesi. Daraltılınca yalnızca başlık satırı kalır; tekrar tıklayınca eski boyuta döner. Durum SQLite'a (`window_state.collapsed`, `expanded_height`) yazılır, yeniden açılışta korunur.
 - **Tema**: tüm pencereler `src/StickyNotes.App/Themes/Theme.xaml` içindeki ortak stilleri kullanır (tek tema; seçici yok). Kalıcı sil / Çöpü boşalt onayları temalı özel diyalogdur (Enter/Esc = Vazgeç).
-- **Checklist**: Enter = yeni madde (imleçten sonrasını taşır), boş maddede Backspace = maddeyi siler, ↑/↓ maddeler arası gezinir, kutucuk = işaretle (üstü çizilir).
-- **Explorer** (Alt+X): Notlar / Çöp sekmeleri, arama kutusu (düz metinde, büyük/küçük harf duyarsız; Ctrl+F), sekme rozetlerinde sayılar ("Notlar 6 · Çöp 3"), sıralama (son düzenlenen / oluşturma), renk filtresi noktaları. Satır = renk, ilk satır, soluk önizleme (checklist: "2/5 tamam"), göreli tarih ("bugün 18:05").
+- **Explorer** (Alt+X): Notlar / Çöp sekmeleri, arama kutusu (düz metinde, büyük/küçük harf duyarsız; Ctrl+F), sekme rozetlerinde sayılar ("Notlar 6 · Çöp 3"), sıralama (son düzenlenen / oluşturma), renk filtresi noktaları. Satır = renk, başlık (yoksa oluşturma tarihi), soluk içerik önizlemesi, göreli tarih ("bugün 18:05").
   Çift tık notu açar. Çöpte: Geri al, Kalıcı sil, Çöpü boşalt (onay sorar; Memos ile eşlenen not Memos'tan da silinir, aşağıya bakın).
 - **Kısayollar** — global (başka program öndeyken de çalışır; Ayarlar'dan değiştirilir/kapatılır): `Alt+H` tüm notları gizle (kalıcı, `is_open=0`), `Alt+S` tümünü göster (tek tek gizlenmişler dahil), `Alt+X` Explorer, `Alt+N` yeni not.
   Başka program aynı kısayolu tutuyorsa uygulama çökmez; `app.log`'a yazar ve tray'de tek seferlik uyarı gösterir. Not penceresi odaktayken ayrıca Ctrl+N yeni not, Ctrl+F Explorer araması.
 - **Kenara yapışma**: sürükleme ve boyutlandırmada görünür not kenarı çalışma alanı kenarına ≤ 12 px (DPI ile ölçeklenir) yaklaşınca oturur; not çalışma alanı dışına çıkamaz. Açılışta konum geri yüklenirken de uygulanır. (Windows'un kendi Aero Snap'i bu pencerelerde kapalıdır.)
 - **Ayarlar** (tray → Ayarlar…, değişiklikler anında uygulanır, bu PC'ye özeldir — SQLite `settings` tablosu, senkronizasyona girmez):
-  yazı tipi / boyutu (10–24) / stili (normal-kalın-italik) → TÜM notlara anında; renk, opaklık, boyut (varsayılan 260×260), tür (metin/checklist) → yalnızca YENİ notlar için varsayılan; 4 global kısayol.
-  Not menüsünde (renk düğmesi) "Bu notu varsayılan yap" o notun renk/opaklık/boyut/türünü varsayılan yapar.
+  yazı tipi / boyutu (10–24) / stili (normal-kalın-italik) → TÜM notlara anında; renk, opaklık, boyut (varsayılan 260×260) → yalnızca YENİ notlar için varsayılan; 4 global kısayol.
+  Not menüsünde (renk düğmesi) "Bu notu varsayılan yap" o notun renk/opaklık/boyutunu varsayılan yapar.
 - Pencere konumu/boyutu/açık-gizli durumu ve içerik kaydedilir; yeniden açılışta geri gelir.
 
 ## Memos eşitleme (TEK-168)
@@ -32,7 +32,7 @@ Ayarlar → **Memos eşitleme** (bu PC'ye özel; `settings` tablosundaki `memos_
 
 **Eşitlenenler ve kurallar**
 - Seçilen Space'teki tüm memolar (yazarı kim olursa olsun) yerel nota gelir. Yerelde yazdığınız notlar Space'e gönderilir.
-- Başka kullanıcının notu **salt okunur** açılır: metin, checklist, biçim, yapıştırma ve tür değişikliği kapalıdır; renk, opaklık, konum, daralt ve çöpe atma (yalnızca bu PC'den gizler) açıktır. Şeritte kilit simgesi görünür.
+- Başka kullanıcının notu **salt okunur** açılır: metin, başlık, biçim ve yapıştırma kapalıdır; renk, opaklık, konum, daralt ve çöpe atma (yalnızca bu PC'den gizler) açıktır. Şeritte kilit simgesi görünür.
 - İki tarafta da değişen not çakışırsa yerel sürüm korunur, sunucu sürümü "(çakışma kopyası)" adıyla yeni not olur.
 - **Çöpe atmak** yalnızca bu PC'yi etkiler: Memos'a hiçbir şey gönderilmez, memo listede kalır; not eşitlemeyle çöpten geri gelmez.
 - **Kalıcı sil / Çöpü boşalt** memoyu Memos'tan da **siler** (arşivlemez, geri alınamaz). Çevrimdışıysanız ya da istek başarısızsa silme bekler ve sonraki turlarda yeniden denenir. Başkasının salt okunur notu (ve sunucunun yetki vermediği memo) asla silinmez, yalnızca bu PC'de silinir. Başka Space'e bağlı ("bağlantısız") notun memosu, o Space yeniden seçilene kadar silinmez. Bu sürüme güncellemeden önce kalıcı silinmiş notların memoları silinmez.
@@ -79,6 +79,6 @@ Gereksinim: .NET SDK 10 (net10.0-windows). İkonu yeniden üretmek için `tools/
 Yerel derleme (Windows, Inno Setup 6): `iscc /DAppVersion=0.3.0 /DPublishDir=<dist\win-x64 tam yol> installer\StickyNotes.iss` → `installer\Output\`.
 
 ## Test verisi ve elle UI testi
-`dotnet run --project tools/seed -- <data-dir> [adet] [opaque]` gerçekçi test notları yazar (`--dump <data-dir>` kayıtlı opaklıkları listeler). `StickyNotes.exe --show-tray-menu` tray menüsünü ekranda açar. Memos: `tools/ui-test/tek166.ps1` (Docker Memos ve `MEMOS_TEST_URL`/`MEMOS_TEST_TOKEN`/`MEMOS_TEST_SPACE` gerekir; Ayarlar'ı tray'den açın). Senaryolar: `tools/ui-test/tek150a/b/d/e.ps1`, `tek151a/b/c/d.ps1`, biçim için `tek152.ps1` (+`lib150.ps1`, `backdrop.ps1`, `holdkey.ps1` = başka programın kısayolu tutmasını taklit eder). RichTextBox'a yazmak için `Set-Editor` (ui.ps1) kullanılır. `--dump` tür, pencere durumu ve ayarları da yazar.
+`dotnet run --project tools/seed -- <data-dir> [adet] [opaque]` gerçekçi test notları yazar (`--dump <data-dir>` kayıtlı opaklıkları listeler). `StickyNotes.exe --show-tray-menu` tray menüsünü ekranda açar. Memos: `tools/ui-test/tek166.ps1` (Docker Memos ve `MEMOS_TEST_URL`/`MEMOS_TEST_TOKEN`/`MEMOS_TEST_SPACE` gerekir; Ayarlar'ı tray'den açın). Senaryolar: `tools/ui-test/tek150a/b/d/e.ps1`, `tek151a/b/c/d.ps1`, biçim için `tek152.ps1` (+`lib150.ps1`, `backdrop.ps1`, `holdkey.ps1` = başka programın kısayolu tutmasını taklit eder). RichTextBox'a yazmak için `Set-Editor` (ui.ps1) kullanılır. `--dump` tür, pencere durumu ve ayarları da yazar; `--content <data-dir>` son notun içerik JSON'unu yazar. TEK-467 senaryosu: `tek467.ps1` (`ui.ps1` + `lib150.ps1` ile).
 
 `tools/ui-test/ui.ps1` UI Automation + SendKeys yardımcılarını içerir (ekran görüntüleri `SHOT_DIR` ortam değişkenindeki klasöre, yoksa temp klasörüne yazılır) (`run.sh <senaryo.ps1>` ile yüklenir).

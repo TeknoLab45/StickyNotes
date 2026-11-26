@@ -579,22 +579,68 @@ public class SyncEngineTests : IDisposable
     }
 
     [Fact]
-    public async Task Checklist_RoundTripsThroughSync()
+    public async Task LegacyChecklist_IsConvertedOnOpen_WithoutServerWrite()
     {
         var items = new[] { NoteContent.NewItem("araç 34 ABC 123", done: true), NoteContent.NewItem("yedek parça", indent: 1) };
         var n = _repo.Create(NoteType.Checklist, NoteColors.Default, NoteContent.CreateChecklist(items));
         await Run();
-
         var memo = _api.Memos["memos/" + n.Id.Replace("-", "")];
-        Assert.Equal("- [x] araç 34 ABC 123\n  - [ ] yedek parça", memo.Content);
 
-        _api.RemoteEdit(memo.Name, content: "- [x] araç 34 ABC 123\n  - [x] yedek parça\n- [ ] yeni madde");
+        var reopened = new NoteRepository(_repo.DbPath);
+        var converted = reopened.Get(n.Id)!;
+        Assert.Equal(NoteType.Text, converted.Type);
+        Assert.Equal(memo.Content, NoteContent.ParseText(converted.Content));
+        Assert.Equal(n.EditedAt, converted.EditedAt);
+
+        _api.Calls.Clear();
+        var r = await Run();
+        Assert.Equal(0, r.Pushed + r.Pulled + r.Conflicts);
+        Assert.Equal(0, _api.Count("update"));
+    }
+
+    [Fact]
+    public async Task Title_IsPushedAsFirstLine_AndPulledBack()
+    {
+        var n = _repo.Create(content: NoteContent.CreateText("gövde", title: "Plan"));
+        await Run();
+        var memo = _api.Memos["memos/" + n.Id.Replace("-", "")];
+        Assert.Equal("# Plan\ngövde", memo.Content);
+
+        _repo.Update(n.Id, NoteType.Text, NoteContent.CreateText("gövde", title: "Yeni plan"), n.Color);
+        await Run();
+        Assert.Equal("# Yeni plan\ngövde", _api.Memos[memo.Name].Content);
+
+        _api.RemoteEdit(memo.Name, content: "# Web başlığı\ngövde 2");
+        await Run();
+        var local = _repo.Get(n.Id)!;
+        Assert.Equal("Web başlığı", NoteContent.ParseTitle(local.Content));
+        Assert.Equal("gövde 2", NoteContent.ParseText(local.Content));
+    }
+
+    [Fact]
+    public async Task PulledMemo_WithoutHeading_ShowsMemoCreationDate()
+    {
+        var created = new DateTime(2025, 3, 4, 10, 30, 0, DateTimeKind.Utc);
+        _api.Memos["memos/web1"] = _api.AddRemote("memos/web1", "web notu") with { CreateTime = created };
         await Run();
 
-        var parsed = NoteContent.ParseItems(_repo.Get(n.Id)!.Content);
-        Assert.Equal(NoteType.Checklist, _repo.Get(n.Id)!.Type);
-        Assert.Equal(new[] { ("araç 34 ABC 123", true, 0), ("yedek parça", true, 1), ("yeni madde", false, 0) },
-            parsed.Select(i => (i.Text, i.Done, i.Indent)));
+        var n = Assert.Single(_repo.ListActive());
+        Assert.Equal("", NoteContent.ParseTitle(n.Content));
+        Assert.Equal(created, n.CreatedAt);
+    }
+
+    [Fact]
+    public async Task ConflictCopy_OfTitledNote_LabelsTheTitle()
+    {
+        var n = _repo.Create(content: NoteContent.CreateText("ilk", title: "Plan"));
+        await Run();
+        _api.RemoteEdit("memos/" + n.Id.Replace("-", ""), content: "# Plan\nweb");
+        _repo.Update(n.Id, NoteType.Text, NoteContent.CreateText("pc", title: "Plan"), n.Color);
+        await Run();
+
+        var copy = _repo.ListActive().Single(x => x.Id != n.Id);
+        Assert.Equal("Plan " + SyncEngine.ConflictLabel, NoteContent.ParseTitle(copy.Content));
+        Assert.Equal("web", NoteContent.ParseText(copy.Content));
     }
 
     [Fact]

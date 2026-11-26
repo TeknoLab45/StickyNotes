@@ -1,5 +1,12 @@
 ﻿# Değişiklikler (en yeni üstte)
 
+## 2026-11-26 — TEK-467 — WinVMAgent: not düzenleyici, F2 başlık, Markdown, sürüm 0.4.0
+
+- Seçimsiz Ctrl+B yazma modu; F2 başlık (Memos'ta ilk satır `# Başlık`, başlıksız notta tarih); Markdown liste tuşları; Ctrl+Shift+V düz metin yapıştırma; liste (checklist) modu kaldırıldı, eski notlar metne çevriliyor.
+- `notes.created_at` sütunu; `MemosClient` `createTime` okuyor.
+- Windows: build 0 hata, test 175 geçti / 1 atlandı, `tools/ui-test/tek467.ps1` 16/16. Ayrıntı ve kısıtlar: `docs/NOT_DUZENLEYICI.md`.
+- Kullanıcı izniyle `main`'e merge ve `v0.4.0` tag'i.
+
 ## 2026-11-26 — TEK-463 — Coder: gizli bilgi taraması, sürüm 0.3.1, repo public
 
 - Bütün git geçmişi, dallar, tag'ler, exe, workflow, release asset'i ve Actions logları tarandı: gerçek sır yok. Rapor: `docs/GUVENLIK_TARAMASI.md`.

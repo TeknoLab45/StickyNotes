@@ -10,10 +10,16 @@ if (args.Length > 1 && args[0] == "--dump")
     {
         var w = r.GetWindow(n.Id);
         var ws = w == null ? "-" : $"open={(w.IsOpen ? 1 : 0)} {w.X:0},{w.Y:0} {w.Width:0}x{w.Height:0}";
-        Console.WriteLine($"{n.Id[^6..]} | {n.Type} | {n.Color} | {n.Opacity:0.##} | {ws} | {NoteContent.FirstLine(n.Type, n.Content)}");
+        Console.WriteLine($"{n.Id[^6..]} | {n.Type} | {n.Color} | {n.Opacity:0.##} | {ws} | {NoteContent.DisplayTitle(NoteContent.ParseTitle(n.Content), n.CreatedAt)}");
     }
     var s = r.LoadSettings();
     Console.WriteLine("AYAR " + string.Join("; ", s.ToPairs().Select(p => p.Key + "=" + p.Value)));
+    return;
+}
+if (args.Length > 1 && args[0] == "--content")
+{
+    // En son düzenlenen notun content JSON'unu yazar (UI testleri için).
+    Console.WriteLine(new NoteRepository(Path.Combine(args[1], "notes.db")).ListActive().First().Content);
     return;
 }
 var dir = args.Length > 0 ? args[0] : "seed-data";
@@ -46,11 +52,7 @@ for (var i = 0; i < count; i++)
     Note n;
     if (i == 1)
     {
-        n = repo.Create(NoteType.Checklist, colors[i], NoteContent.CreateChecklist(new[]
-        {
-            NoteContent.NewItem("Alışveriş listesi", true), NoteContent.NewItem("Süt", true), NoteContent.NewItem("Ekmek"),
-            NoteContent.NewItem("Yumurta"), NoteContent.NewItem("Zeytin"),
-        }));
+        n = repo.Create(NoteType.Text, colors[i], NoteContent.CreateText("- [x] Süt\n- [ ] Ekmek\n- [ ] Yumurta\n- Zeytin", title: "Alışveriş listesi"));
     }
     else if (i == 2)
     {

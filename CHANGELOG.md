@@ -2,6 +2,15 @@
 
 Kullanıcıya dönük sürüm notları. Ayrıntılı geliştirme kayıtları: `docs/DEGISIKLIKLER.md`.
 
+## [0.4.0] - 2026-11-26
+
+- Ctrl+B artık yazarken de çalışır: seçim yokken kalın modunu açar/kapatır.
+- F2 ile not başlığı düzenlenir. Başlık Memos'ta ilk satır (`# Başlık`) olur; başlıksız notta tarih görünür.
+- Not içeriği Markdown: `- `, `1. `, `- [ ] ` listeleri Enter ile devam eder, Tab / Shift+Tab ile girintilenir.
+- Ctrl+Shift+V ve sağ tık menüsü ile düz metin yapıştırma.
+- Liste modu kaldırıldı; eski liste notları Markdown görev listesine çevrilir.
+- Tüm bilgisayarları güncelleyin: eski sürüm başlığı korumaz.
+
 ## [0.3.1] - 2026-11-26
 
 - Depo public yapilmadan once gizli bilgi taramasi yapildi (sonuc: temiz); rapor `docs/GUVENLIK_TARAMASI.md`. Uygulama davranisi degismedi.

@@ -20,30 +20,6 @@ public class NoteContentTests
     }
 
     [Fact]
-    public void TextToChecklist_SplitsLines()
-    {
-        var c = NoteContent.ToChecklist(NoteContent.CreateText("bir\niki\nüç"));
-        var items = NoteContent.ParseItems(c);
-        Assert.Equal(new[] { "bir", "iki", "üç" }, items.Select(i => i.Text));
-        Assert.All(items, i => Assert.False(i.Done));
-    }
-
-    [Fact]
-    public void ChecklistToText_JoinsLines()
-    {
-        var c = NoteContent.CreateChecklist(new[] { NoteContent.NewItem("x", true), NoteContent.NewItem("y") });
-        Assert.Equal("x\ny", NoteContent.ParseText(NoteContent.ToText(c)));
-    }
-
-    [Fact]
-    public void EmptyText_ToChecklist_GivesOneEmptyItem()
-    {
-        var items = NoteContent.ParseItems(NoteContent.ToChecklist(NoteContent.CreateText("")));
-        Assert.Single(items);
-        Assert.Equal("", items[0].Text);
-    }
-
-    [Fact]
     public void InvalidJson_DoesNotThrow()
     {
         Assert.Equal("", NoteContent.ParseText("not json"));
@@ -51,10 +27,22 @@ public class NoteContentTests
     }
 
     [Fact]
-    public void FirstLine_SkipsBlankLines()
+    public void Title_IsStoredSeparately_AndOptional()
     {
-        Assert.Equal("başlık", NoteContent.FirstLine(NoteType.Text, NoteContent.CreateText("\n\n  başlık \nx")));
-        Assert.Equal("(boş not)", NoteContent.FirstLine(NoteType.Text, NoteContent.CreateText("")));
+        var c = NoteContent.CreateText("gövde", title: "  Başlık\r\niki  ");
+        Assert.Equal("Başlık iki", NoteContent.ParseTitle(c));
+        Assert.Equal("gövde", NoteContent.ParseText(c));
+        Assert.Equal("Başlık iki\ngövde", NoteContent.PlainText(NoteType.Text, c));
+        Assert.Equal("{\"v\":1,\"text\":\"gövde\"}", NoteContent.CreateText("gövde", title: "   "));
+        Assert.Equal("", NoteContent.ParseTitle("{bad"));
+    }
+
+    [Fact]
+    public void DisplayTitle_FallsBackToCreationDate()
+    {
+        var utc = new DateTime(2026, 11, 17, 18, 5, 0, DateTimeKind.Local).ToUniversalTime();
+        Assert.Equal("Plan", NoteContent.DisplayTitle("Plan", utc));
+        Assert.Equal("17.11.2026 18:05", NoteContent.DisplayTitle("", utc));
     }
 
     [Fact]
@@ -64,22 +52,10 @@ public class NoteContentTests
     }
 
     [Fact]
-    public void Preview_Text_IsRestAfterFirstLine()
+    public void Preview_JoinsNonEmptyLines()
     {
-        Assert.Equal("ikinci · üçüncü", NoteContent.Preview(NoteType.Text, NoteContent.CreateText("başlık\n\nikinci\n üçüncü ")));
-        Assert.Equal("", NoteContent.Preview(NoteType.Text, NoteContent.CreateText("tek satır")));
-    }
-
-    [Fact]
-    public void Preview_Checklist_ShowsProgress()
-    {
-        var content = NoteContent.CreateChecklist(new[]
-        {
-            NoteContent.NewItem("a", true), NoteContent.NewItem("b"), NoteContent.NewItem("c", true),
-            NoteContent.NewItem("d"), NoteContent.NewItem("e"), NoteContent.NewItem("")
-        });
-        Assert.Equal("2/5 tamam", NoteContent.Preview(NoteType.Checklist, content));
-        Assert.Equal("", NoteContent.Preview(NoteType.Checklist, NoteContent.Empty(NoteType.Checklist)));
+        Assert.Equal("ilk · ikinci", NoteContent.Preview(NoteContent.CreateText("ilk\n\n ikinci ")));
+        Assert.Equal("", NoteContent.Preview(NoteContent.CreateText("")));
     }
 
     [Fact]

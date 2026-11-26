@@ -30,7 +30,6 @@ public sealed record AppSettings
     public double DefaultOpacity { get; init; } = 1.0;
     public double DefaultWidth { get; init; } = 260;
     public double DefaultHeight { get; init; } = 260;
-    public string DefaultType { get; init; } = NoteType.Text;
 
     public string HotkeyHideAll { get; init; } = "Alt+H";
     public string HotkeyShowAll { get; init; } = "Alt+S";
@@ -47,7 +46,6 @@ public sealed record AppSettings
         DefaultOpacity = NoteOpacity.Normalize(DefaultOpacity),
         DefaultWidth = ClampSize(DefaultWidth, 260),
         DefaultHeight = ClampSize(DefaultHeight, 260),
-        DefaultType = DefaultType == NoteType.Checklist ? NoteType.Checklist : NoteType.Text,
         HotkeyHideAll = (HotkeyHideAll ?? "").Trim(),
         HotkeyShowAll = (HotkeyShowAll ?? "").Trim(),
         HotkeyExplorer = (HotkeyExplorer ?? "").Trim(),
@@ -66,7 +64,7 @@ public sealed record AppSettings
     {
         ["font_family"] = FontFamily, ["font_size"] = D(FontSize), ["font_style"] = FontStyle,
         ["default_color"] = DefaultColor, ["default_opacity"] = D(DefaultOpacity),
-        ["default_width"] = D(DefaultWidth), ["default_height"] = D(DefaultHeight), ["default_type"] = DefaultType,
+        ["default_width"] = D(DefaultWidth), ["default_height"] = D(DefaultHeight),
         ["hotkey_hide_all"] = HotkeyHideAll, ["hotkey_show_all"] = HotkeyShowAll,
         ["hotkey_explorer"] = HotkeyExplorer, ["hotkey_new_note"] = HotkeyNewNote,
     };
@@ -85,7 +83,6 @@ public sealed record AppSettings
             DefaultOpacity = P(kv.GetValueOrDefault("default_opacity"), d.DefaultOpacity),
             DefaultWidth = P(kv.GetValueOrDefault("default_width"), d.DefaultWidth),
             DefaultHeight = P(kv.GetValueOrDefault("default_height"), d.DefaultHeight),
-            DefaultType = S("default_type", d.DefaultType),
             HotkeyHideAll = S("hotkey_hide_all", d.HotkeyHideAll),
             HotkeyShowAll = S("hotkey_show_all", d.HotkeyShowAll),
             HotkeyExplorer = S("hotkey_explorer", d.HotkeyExplorer),

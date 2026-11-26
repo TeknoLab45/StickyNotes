@@ -30,20 +30,18 @@ public sealed class NoteRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void Create_Default_HasEmptyContent_AndChecklistHasOneItem()
+    public void Create_Default_HasEmptyContent()
     {
         Assert.Equal("", NoteContent.ParseText(_repo.Create().Content));
-        var cl = _repo.Create(NoteType.Checklist);
-        Assert.Single(NoteContent.ParseItems(cl.Content));
     }
 
     [Fact]
     public void Update_ChangesFieldsAndEditedAt()
     {
         var n = Add("a");
-        Assert.True(_repo.Update(n.Id, NoteType.Checklist, NoteContent.ToChecklist(n.Content), "blue"));
+        Assert.True(_repo.Update(n.Id, NoteType.Text, NoteContent.CreateText("b"), "blue"));
         var g = _repo.Get(n.Id)!;
-        Assert.Equal(NoteType.Checklist, g.Type);
+        Assert.Equal("b", NoteContent.ParseText(g.Content));
         Assert.Equal("blue", g.Color);
         Assert.True(g.EditedAt > n.EditedAt);
     }

@@ -61,7 +61,6 @@ public partial class NoteWindow : Window
         {
             if (e.PropertyName == nameof(NoteViewModel.Color)) ApplyColor();
             if (e.PropertyName == nameof(NoteViewModel.NoteOpacity)) UpdateWindowOpacity();
-            if (e.PropertyName == nameof(NoteViewModel.Type)) Dispatcher.BeginInvoke(FocusBody, DispatcherPriority.Input);
         };
         LocationChanged += (_, _) => { if (!_restoring) ScheduleSave(); };
         SizeChanged += (_, _) =>
@@ -80,6 +79,13 @@ public partial class NoteWindow : Window
         TextEditor.TextChanged += Editor_TextChanged;
         DataObject.AddPastingHandler(TextEditor, Editor_Pasting);
         RegisterEditorCommands();
+        TextEditor.PreviewKeyDown += Editor_PreviewKeyDown;
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.F2 || Keyboard.Modifiers != ModifierKeys.None) return;
+            BeginTitleEdit();
+            e.Handled = true;
+        };
 
         MinHeight = MinExpandedHeight + 2 * Pad;
         ApplyColor();
@@ -236,16 +242,47 @@ public partial class NoteWindow : Window
 
     public void FocusBody()
     {
-        if (Vm.IsChecklist)
-        {
-            if (Vm.Items.Count > 0) FocusItem(Vm.Items[Vm.Items.Count - 1]);
-        }
-        else
-        {
-            TextEditor.Focus();
-            TextEditor.CaretPosition = TextEditor.Document.ContentEnd;
-        }
+        TextEditor.Focus();
+        TextEditor.CaretPosition = TextEditor.Document.ContentEnd;
     }
+
+    // ---------- Başlık (F2) ----------
+
+    private bool _editingTitle;
+
+    private void BeginTitleEdit()
+    {
+        if (Vm.IsReadOnly || _editingTitle) return;
+        _editingTitle = true;
+        TitleEditor.Text = Vm.NoteTitle;
+        StripTitle.Visibility = Visibility.Hidden;
+        TitleEditor.Visibility = Visibility.Visible;
+        TitleEditor.UpdateLayout();
+        Keyboard.Focus(TitleEditor);
+        TitleEditor.SelectAll();
+    }
+
+    private void EndTitleEdit(bool save)
+    {
+        if (!_editingTitle) return;
+        _editingTitle = false;
+        if (save && !Vm.IsReadOnly) Vm.NoteTitle = NoteContent.NormalizeTitle(TitleEditor.Text);
+        TitleEditor.Visibility = Visibility.Collapsed;
+        StripTitle.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Açık başlık düzenlemesini kaydeder (gizleme, silme ve çıkıştan önce).</summary>
+    public void CommitTitleEdit() => EndTitleEdit(save: true);
+
+    private void TitleEditor_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Enter or Key.Escape)) return;
+        EndTitleEdit(save: e.Key == Key.Enter);
+        e.Handled = true;
+        if (!Vm.IsCollapsed) TextEditor.Focus();
+    }
+
+    private void TitleEditor_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) => EndTitleEdit(save: true);
 
     // ---------- Metin düzenleyici (RichTextBox) ----------
 
@@ -280,11 +317,157 @@ public partial class NoteWindow : Window
         else e.CancelCommand();
     }
 
+    // ---------- Kalın modu, düz metin yapıştırma, Markdown listeleri ----------
+
+    private bool IsCaretBold() =>
+        TextEditor.Selection.GetPropertyValue(TextElement.FontWeightProperty) is FontWeight w
+        && w.ToOpenTypeWeight() >= FontWeights.Bold.ToOpenTypeWeight();
+
+    /// <summary>Seçim varsa seçili yazıyı kalın yapar/açar; yoksa bundan sonra yazılacaklar için kalın modunu değiştirir.</summary>
+    private void ToggleBold()
+    {
+        if (Vm.IsReadOnly) return;
+        if (!TextEditor.Selection.IsEmpty) ToggleMark(MarkTypes.Bold);
+        else TextEditor.Selection.ApplyPropertyValue(TextElement.FontWeightProperty, IsCaretBold() ? FontWeights.Normal : FontWeights.Bold);
+    }
+
+    private (string Text, System.Collections.Generic.List<Mark> Marks, int Start, int End) EditorState()
+    {
+        var doc = TextEditor.Document;
+        var (text, marks) = RichTextMapper.Read(doc);
+        return (text, marks, RichTextMapper.GetOffset(doc, TextEditor.Selection.Start), RichTextMapper.GetOffset(doc, TextEditor.Selection.End));
+    }
+
+    /// <summary>Belgeyi verilen metin/biçimle yeniden yazar (tek geri alma adımı) ve seçimi ayarlar.</summary>
+    private void Rewrite(string text, System.Collections.Generic.IReadOnlyList<Mark> marks, int selStart, int selEnd)
+    {
+        var doc = TextEditor.Document;
+        TextEditor.BeginChange();
+        _syncingEditor = true;
+        try { RichTextMapper.Write(doc, text, marks); }
+        finally
+        {
+            TextEditor.EndChange();
+            _syncingEditor = false;
+        }
+        TextEditor.Selection.Select(RichTextMapper.GetPointer(doc, selStart), RichTextMapper.GetPointer(doc, selEnd));
+        Vm.SetRich(text, marks);
+    }
+
+    /// <summary>Panodaki metni biçimsiz yapıştırır (imleçteki kalın modu da uygulanmaz).</summary>
+    private void PastePlain()
+    {
+        if (Vm.IsReadOnly) return;
+        string clip;
+        try { clip = Clipboard.GetText(TextDataFormat.UnicodeText); }
+        catch (ExternalException ex) { AppLog.Error("Pano okunamadı", ex); return; }
+        if (clip.Length == 0) return;
+        var insert = RichText.NormalizeNewlines(clip);
+        var (text, marks, start, end) = EditorState();
+        var (newText, newMarks) = RichText.Replace(text, marks, start, end, insert);
+        Rewrite(newText, newMarks, start + insert.Length, start + insert.Length);
+    }
+
+    private void Editor_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        var mods = Keyboard.Modifiers;
+        if (e.Key == Key.V && mods == (ModifierKeys.Control | ModifierKeys.Shift))
+        {
+            PastePlain();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter && mods == ModifierKeys.None) e.Handled = ContinueList();
+        else if (e.Key == Key.Tab && !Vm.IsReadOnly && (mods == ModifierKeys.None || mods == ModifierKeys.Shift))
+        {
+            IndentLines(outdent: mods == ModifierKeys.Shift);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Liste maddesinde Enter: yeni madde açar; boş maddede işareti silip listeden çıkar.</summary>
+    private bool ContinueList()
+    {
+        if (Vm.IsReadOnly || !TextEditor.Selection.IsEmpty) return false;
+        var (text, marks, caret, _) = EditorState();
+        var lineStart = caret == 0 ? 0 : text.LastIndexOf('\n', caret - 1) + 1;
+        var lineEnd = text.IndexOf('\n', caret);
+        if (lineEnd < 0) lineEnd = text.Length;
+        var item = MarkdownList.Parse(text[lineStart..lineEnd]);
+        if (item == null || caret - lineStart < item.PrefixLength) return false;
+
+        var bold = IsCaretBold();
+        if (item.IsEmpty)
+        {
+            var (newText, newMarks) = RichText.Replace(text, marks, lineStart, lineEnd, "");
+            Rewrite(newText, newMarks, lineStart, lineStart);
+        }
+        else
+        {
+            var insert = "\n" + item.NextPrefix;
+            var (newText, newMarks) = RichText.Replace(text, marks, caret, caret, insert);
+            Rewrite(newText, newMarks, caret + insert.Length, caret + insert.Length);
+        }
+        // Yazarken kalın modu yeni satırda da sürer.
+        if (bold != IsCaretBold())
+            TextEditor.Selection.ApplyPropertyValue(TextElement.FontWeightProperty, bold ? FontWeights.Bold : FontWeights.Normal);
+        ScrollToCaret();
+        return true;
+    }
+
+    private void ScrollToCaret()
+    {
+        TextEditor.UpdateLayout();
+        var r = TextEditor.CaretPosition.GetCharacterRect(LogicalDirection.Forward);
+        if (r.Bottom > TextEditor.ViewportHeight) TextEditor.ScrollToVerticalOffset(TextEditor.VerticalOffset + r.Bottom - TextEditor.ViewportHeight + 8);
+        else if (r.Top < 0) TextEditor.ScrollToVerticalOffset(TextEditor.VerticalOffset + r.Top);
+    }
+
+    /// <summary>Tab / Shift+Tab: liste satırlarını içeri/dışarı alır. Liste dışında Tab sekme karakteri yazar.</summary>
+    private void IndentLines(bool outdent)
+    {
+        var (text, marks, start, end) = EditorState();
+        var lines = new System.Collections.Generic.List<int>();   // seçimin değdiği liste satırlarının başlangıçları
+        for (var at = start == 0 ? 0 : text.LastIndexOf('\n', start - 1) + 1; at <= end;)
+        {
+            var stop = text.IndexOf('\n', at);
+            if (stop < 0) stop = text.Length;
+            if (MarkdownList.Parse(text[at..stop]) != null) lines.Add(at);
+            at = stop + 1;
+        }
+
+        if (lines.Count == 0)
+        {
+            if (outdent) return;
+            var (t, m) = RichText.Replace(text, marks, start, end, "\t");
+            Rewrite(t, m, start + 1, start + 1);
+            return;
+        }
+
+        var newText = text;
+        var newMarks = marks;
+        var newStart = start;
+        var newEnd = end;
+        for (var i = lines.Count - 1; i >= 0; i--)   // sondan başa: önceki ofsetler kaymaz
+        {
+            var at = lines[i];
+            var remove = outdent ? MarkdownList.OutdentLength(newText[at..]) : 0;
+            var insert = outdent ? "" : MarkdownList.Indent;
+            if (outdent && remove == 0) continue;
+            (newText, newMarks) = RichText.Replace(newText, newMarks, at, at + remove, insert);
+            var delta = insert.Length - remove;
+            if (newStart >= at) newStart = Math.Max(at, newStart + delta);
+            if (newEnd >= at) newEnd = Math.Max(at, newEnd + delta);
+        }
+        if (newText != text) Rewrite(newText, newMarks, newStart, newEnd);
+    }
+
+    private void MenuPastePlain_Click(object sender, RoutedEventArgs e) => PastePlain();
+
     /// <summary>Ctrl+B / Ctrl+U bizim biçim mantığımızı çalıştırır; desteklenmeyen RichTextBox komutları engellenir.</summary>
     private void RegisterEditorCommands()
     {
         TextEditor.CommandBindings.Add(new CommandBinding(EditingCommands.ToggleBold,
-            (_, e) => { ToggleMark(MarkTypes.Bold); e.Handled = true; }));
+            (_, e) => { ToggleBold(); e.Handled = true; }));
         TextEditor.CommandBindings.Add(new CommandBinding(EditingCommands.ToggleUnderline,
             (_, e) => { ToggleMark(MarkTypes.Underline); e.Handled = true; }));
 
@@ -309,32 +492,23 @@ public partial class NoteWindow : Window
     private void ToggleMark(string type)
     {
         if (Vm.IsReadOnly || TextEditor.Selection.IsEmpty) return;
-        var doc = TextEditor.Document;
-        var (text, marks) = RichTextMapper.Read(doc);
-        var start = RichTextMapper.GetOffset(doc, TextEditor.Selection.Start);
-        var end = RichTextMapper.GetOffset(doc, TextEditor.Selection.End);
-        var updated = RichText.Toggle(marks, type, start, end, text.Length);
-
-        TextEditor.BeginChange();
-        _syncingEditor = true;
-        try { RichTextMapper.Write(doc, text, updated); }
-        finally
-        {
-            TextEditor.EndChange();
-            _syncingEditor = false;
-        }
-        TextEditor.Selection.Select(RichTextMapper.GetPointer(doc, start), RichTextMapper.GetPointer(doc, end));
-        Vm.SetRich(text, updated);
+        var (text, marks, start, end) = EditorState();
+        Rewrite(text, RichText.Toggle(marks, type, start, end, text.Length), start, end);
     }
 
     private void EditorMenu_Opened(object sender, RoutedEventArgs e)
     {
         var hasSelection = !TextEditor.Selection.IsEmpty;
-        MenuBold.IsEnabled = hasSelection;
+        MenuPastePlain.IsEnabled = !Vm.IsReadOnly && Clipboard.ContainsText();
+        MenuBold.IsEnabled = !Vm.IsReadOnly;
         MenuUnderline.IsEnabled = hasSelection;
         MenuStrike.IsEnabled = hasSelection;
         MenuBold.IsChecked = MenuUnderline.IsChecked = MenuStrike.IsChecked = false;
-        if (!hasSelection) return;
+        if (!hasSelection)
+        {
+            MenuBold.IsChecked = IsCaretBold();
+            return;
+        }
 
         var doc = TextEditor.Document;
         var (text, marks) = RichTextMapper.Read(doc);
@@ -345,7 +519,7 @@ public partial class NoteWindow : Window
         MenuStrike.IsChecked = RichText.IsFullyMarked(marks, MarkTypes.Strike, start, end);
     }
 
-    private void MenuBold_Click(object sender, RoutedEventArgs e) => ToggleMark(MarkTypes.Bold);
+    private void MenuBold_Click(object sender, RoutedEventArgs e) => ToggleBold();
     private void MenuUnderline_Click(object sender, RoutedEventArgs e) => ToggleMark(MarkTypes.Underline);
     private void MenuStrike_Click(object sender, RoutedEventArgs e) => ToggleMark(MarkTypes.Strike);
 
@@ -370,6 +544,7 @@ public partial class NoteWindow : Window
 
     public void HideNote()
     {
+        CommitTitleEdit();
         Hide();
         Flush();
         _manager.NotifyChanged();
@@ -437,12 +612,6 @@ public partial class NoteWindow : Window
 
     private void DeleteButton_Click(object sender, RoutedEventArgs e) => _manager.DeleteNote(Vm.Id);
 
-    private void TypeButton_Click(object sender, RoutedEventArgs e)
-    {
-        Vm.ToggleType();
-        if (!Vm.IsChecklist) LoadEditor();   // checklist → metin: düzenleyiciyi yeni içerikle doldur
-    }
-
     private void ColorButton_Click(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu { PlacementTarget = ColorButton, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
@@ -484,77 +653,4 @@ public partial class NoteWindow : Window
         menu.IsOpen = true;
     }
 
-    // ---------- Checklist klavye davranışı ----------
-
-    /// <summary>Salt okunur checklistte yalnızca gezinme ve kopyalama tuşları geçer; diğer her şey engellenir.</summary>
-    private static bool IsReadOnlyNavigationKey(Key key) =>
-        key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End or Key.PageUp or Key.PageDown
-        || Keyboard.Modifiers == ModifierKeys.Control;
-
-    private void ItemText_PreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        if (sender is not TextBox tb || tb.DataContext is not ChecklistItemViewModel item) return;
-        if (Vm.IsReadOnly && !IsReadOnlyNavigationKey(e.Key)) { e.Handled = true; return; }
-        var idx = Vm.Items.IndexOf(item);
-        if (idx < 0) return;
-
-        switch (e.Key)
-        {
-            case Key.Enter:
-                {
-                    // İmleçten sonrasını yeni maddeye taşı
-                    var caret = tb.CaretIndex;
-                    var rest = tb.Text.Substring(caret);
-                    if (rest.Length > 0) item.Text = tb.Text.Substring(0, caret);
-                    var n = Vm.InsertItem(idx + 1, rest);
-                    FocusItem(n, 0);
-                    e.Handled = true;
-                    break;
-                }
-            case Key.Back when tb.Text.Length == 0 && tb.SelectionLength == 0:
-                {
-                    if (Vm.Items.Count > 1)
-                    {
-                        Vm.Items.RemoveAt(idx);
-                        FocusItem(Vm.Items[Math.Max(0, idx - 1)]);
-                    }
-                    e.Handled = true;
-                    break;
-                }
-            case Key.Up when idx > 0:
-                FocusItem(Vm.Items[idx - 1]);
-                e.Handled = true;
-                break;
-            case Key.Down when idx < Vm.Items.Count - 1:
-                FocusItem(Vm.Items[idx + 1], 0);
-                e.Handled = true;
-                break;
-        }
-    }
-
-    private void FocusItem(ChecklistItemViewModel item, int? caret = null)
-    {
-        Dispatcher.BeginInvoke(() =>
-        {
-            ItemsHost.UpdateLayout();
-            if (ItemsHost.ItemContainerGenerator.ContainerFromItem(item) is not DependencyObject cont) return;
-            var tb = FindChild<TextBox>(cont);
-            if (tb == null) return;
-            tb.Focus();
-            Keyboard.Focus(tb);
-            tb.CaretIndex = caret ?? tb.Text.Length;
-        }, DispatcherPriority.Loaded);
-    }
-
-    private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var c = VisualTreeHelper.GetChild(parent, i);
-            if (c is T t) return t;
-            var r = FindChild<T>(c);
-            if (r != null) return r;
-        }
-        return null;
-    }
 }

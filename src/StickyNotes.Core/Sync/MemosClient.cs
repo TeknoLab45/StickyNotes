@@ -7,7 +7,7 @@ namespace StickyNotes.Core.Sync;
 
 public sealed record MemosSpace(string Name, string Title, string CurrentUserRole);
 public sealed record MemosUser(string Name, string Username);
-public sealed record MemoDto(string Name, string Creator, string Content, string State, string Visibility, string Space, DateTime UpdateTime);
+public sealed record MemoDto(string Name, string Creator, string Content, string State, string Visibility, string Space, DateTime UpdateTime, DateTime? CreateTime = null);
 
 /// <summary>Memos REST yüzeyi. Null dönüşü = 404 (kayıt yok).</summary>
 public interface IMemosApi
@@ -267,9 +267,13 @@ public sealed class MemosClient : IMemosApi
         Str(e, "state"),
         Str(e, "visibility"),
         Str(e, "space"),
-        e.TryGetProperty("updateTime", out var u) && u.ValueKind == JsonValueKind.String
-            ? DateTime.Parse(u.GetString()!, null, System.Globalization.DateTimeStyles.RoundtripKind).ToUniversalTime()
-            : DateTime.UtcNow);
+        Time(e, "updateTime") ?? DateTime.UtcNow,
+        Time(e, "createTime"));
+
+    private static DateTime? Time(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+            ? DateTime.Parse(v.GetString()!, null, System.Globalization.DateTimeStyles.RoundtripKind).ToUniversalTime()
+            : null;
 
     private static string Str(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";

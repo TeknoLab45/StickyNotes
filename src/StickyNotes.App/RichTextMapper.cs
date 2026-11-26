@@ -132,12 +132,15 @@ internal static class RichTextMapper
     private static int FormatOf(Run run)
     {
         var flags = 0;
+        var weightSeen = false;   // en yakın yerel kalınlık geçerlidir (yazarken kalın kapatılınca "Normal" yazılır)
         DependencyObject? node = run;
         while (node is not null)
         {
-            if (node.ReadLocalValue(TextElement.FontWeightProperty) is FontWeight w
-                && w.ToOpenTypeWeight() >= FontWeights.Bold.ToOpenTypeWeight())
-                flags |= BoldFlag;
+            if (!weightSeen && node.ReadLocalValue(TextElement.FontWeightProperty) is FontWeight w)
+            {
+                weightSeen = true;
+                if (w.ToOpenTypeWeight() >= FontWeights.Bold.ToOpenTypeWeight()) flags |= BoldFlag;
+            }
 
             if (node.ReadLocalValue(Inline.TextDecorationsProperty) is TextDecorationCollection decos)
             {

@@ -87,8 +87,8 @@ public partial class ExplorerWindow : Window
             return new ExplorerRow(
                 n.Id,
                 NoteTheme.Strip(n.Color),
-                NoteContent.FirstLine(n.Type, n.Content),
-                NoteContent.Preview(n.Type, n.Content),
+                NoteContent.DisplayTitle(NoteContent.ParseTitle(n.Content), n.CreatedAt),
+                NoteContent.Preview(n.Content),
                 DateText.Relative(trash ? n.DeletedAt ?? n.EditedAt : _sortByCreated ? n.CreatedAt : n.EditedAt, now),
                 linked && rec!.ReadOnly,
                 linked && rec!.Space != space);

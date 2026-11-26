@@ -4,7 +4,7 @@ Bu dosya TEK-167 kapsamını anlatır: StickyNotes ile Memos sunucusu arasında 
 
 ## Ne yapıldı
 
-- **Markdown dönüşümü** (`MemoMarkdown.cs`): kalın → `**x**`, üstü çizili → `~~x~~`, altı çizili sunucuya gitmez. Checklist → `- [ ] / - [x]`, girinti 2 boşluk. Yabancı markdown düz metin olarak korunur. Parmak izi (`Fingerprint`): sondaki boşluk yok sayılır, çöp/arşiv durumu yalnızca düzenlenebilir notlarda sayılır.
+- **Markdown dönüşümü** (`MemoMarkdown.cs`): başlık ↔ ilk satır `# Başlık`; içerik Markdown kaynağı olarak aynen taşınır (listeler, görevler); kalın → `**x**`, üstü çizili → `~~x~~`, altı çizili sunucuya gitmez. Memodan gelen not her zaman metin notudur (TEK-467, `docs/NOT_DUZENLEYICI.md`). Parmak izi (`Fingerprint`): sondaki boşluk yok sayılır, çöp/arşiv durumu yalnızca düzenlenebilir notlarda sayılır.
 - **İstemci** (`MemosClient.cs`, `IMemosApi`): kök algılama (`/api` → `/api/v1`), Bearer PAT, sayfalı listeleme, hata türleri (`Unauthorized`, `Forbidden`, `NotFound` → null, `AlreadyExists`, `Offline`, `Version`). Token hiçbir hata metnine yazılmaz.
 - **Ayarlar** (`SyncSettings.cs`): `memos_*` anahtarları `settings` tablosunda (bu PC'ye özel). Token DPAPI ile App'te şifrelenir; Core yalnızca `memos_token_enc` metnini taşır.
 - **Eşleme tablosu** `sync_state` (`NoteRepository.cs`): not kimliği ↔ memo adı, Space, yazar, salt okunur bayrağı, son eşitlenen içerik parmak izi. Eski veritabanları için `CREATE TABLE IF NOT EXISTS`, veri kaybı yok.
@@ -115,7 +115,7 @@ docker run -d --name memos2611 -p 5232:5230 -v memos2611-data:/var/opt/memos neo
 
 ## Bilinen kısıtlar
 
-- Markdown'a gitmeyen biçim: altı çizili. Sunucudan gelen `**`/`~~` çiftleri kalın/üstü çizili sayılır; kullanıcının kendi metninde geçen bu çiftler de öyle yorumlanır (kaçış yok).
+- Markdown'a gitmeyen biçim: altı çizili. Sunucudan gelen `**x**`/`~~x~~` çiftleri kalın/üstü çizili sayılır (kaçış yok); aynen geri üretilemeyen satır metin kalır.
 - Çakışma kopyası, yazma ile kayıt arasında çökme olursa iki kez oluşabilir (kopya, veri kaybı değil).
 - Sigorta eşiği (5 ve %30) hem mutlak hem oransal aynı anda aşılırsa tetiklenir. Tek tek kayıp memolar sigortaya takılmaz.
 - Birden fazla PC: bir PC'de çöpe atma diğerine yansımaz (memo değişmez). Bir PC'de kalıcı silme diğerinde "web'de silinmiş" gibi görünür (not çöpe gider); tek seferde 5'ten ve %30'dan fazlaysa diğer PC'de sigorta tetiklenir ve "Yine de eşitle" bunu aşmaz.
